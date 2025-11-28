@@ -10,7 +10,7 @@ django-registration-redux>=2.10   # revisar compatibilidad (ver notas abajo)
 django-reversion>=4.0
 django-social-share>=2.0
 django-sortedm2m>=4.0
-django-impersonate>=2.0
+django-impersonate>=1.9.5
 django-redis>=5.0
 
 # DMOJ / VNOJ custom packages (keep git references)
