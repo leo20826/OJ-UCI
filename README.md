@@ -1,4 +1,4 @@
-# VNOJ Docker
+# OJ-UCI Docker
 
 This repository contains the Docker files to run the [VNOJ](https://github.com/VNOI-Admin/OJ).
 
@@ -11,8 +11,8 @@ First, [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docke
 Clone the repository:
 
 ```sh
-$ git clone --recursive https://github.com/leo20826/OJ-UCI.git
-$ cd vnoj-docker/dmoj
+$ git clone --recursive https://github.com/leo20826/OJ-UCI.git site
+$ cd site/dmoj
 ```
 
 From now on, it is assumed you are in the `dmoj` directory.
