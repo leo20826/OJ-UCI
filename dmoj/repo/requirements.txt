@@ -17,7 +17,8 @@ django-redis>=5.0
 dmoj-wpadmin @ git+https://github.com/DMOJ/dmoj-wpadmin.git
 django-fernet-fields @ git+https://github.com/DMOJ/django-fernet-fields.git
 jsonfield @ git+https://github.com/DMOJ/jsonfield.git
-ansi2html @ git+https://github.com/DMOJ/ansi2html.git
+#ansi2html @ git+https://github.com/DMOJ/ansi2html.git
+ansi2html>=1.9.1
 martor @ git+https://github.com/VNOI-Admin/martor.git
 markdown2 @ git+https://github.com/VNOI-Admin/python-markdown2.git
 
@@ -50,3 +51,4 @@ bleach[css]
 discord-webhook
 django-admin-sortable2>=1.0
 icalendar
+setuptools>=45.0

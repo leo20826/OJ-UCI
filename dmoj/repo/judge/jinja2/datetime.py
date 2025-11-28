@@ -4,7 +4,8 @@ from django.template.defaultfilters import date, time
 from django.templatetags.tz import localtime
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
-from django.utils.timezone import utc
+#from django.utils.timezone import utc
+from datetime import timezone
 from django.utils.translation import gettext as _
 
 from . import registry
