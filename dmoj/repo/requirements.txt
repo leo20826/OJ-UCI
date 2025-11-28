@@ -1,0 +1,52 @@
+# Core framework
+Django==5.2.*
+
+# Common Django extras / utils
+django-cleanup>=6.0
+django-compressor>=4.6
+django-mptt>=0.16   # prefer >=0.17 / 0.18 if tests lo permiten
+django-pagedown>=2.0
+django-registration-redux>=2.10   # revisar compatibilidad (ver notas abajo)
+django-reversion>=4.0
+django-social-share>=2.0
+django-sortedm2m>=4.0
+django-impersonate>=2.0
+django-redis>=5.0
+
+# DMOJ / VNOJ custom packages (keep git references)
+dmoj-wpadmin @ git+https://github.com/DMOJ/dmoj-wpadmin.git
+django-fernet-fields @ git+https://github.com/DMOJ/django-fernet-fields.git
+jsonfield @ git+https://github.com/DMOJ/jsonfield.git
+ansi2html @ git+https://github.com/DMOJ/ansi2html.git
+martor @ git+https://github.com/VNOI-Admin/martor.git
+markdown2 @ git+https://github.com/VNOI-Admin/python-markdown2.git
+
+# Utilities & runtime libs
+lxml
+lxml_html_clean
+Pygments>=2.19
+mistune>=2.0,<4
+social-auth-core>=4.3.0
+social-auth-app-django>=5.0.0
+pytz
+django-statici18n
+pika
+ua-parser
+pyyaml
+jinja2
+django_jinja>=2.5.0
+llist
+requests
+pyotp
+qrcode[pil]
+pymoss
+packaging>=21.0
+celery>=5.2,<6
+sqlparse
+lupa
+netaddr
+webauthn>=0.10
+bleach[css]
+discord-webhook
+django-admin-sortable2>=1.0
+icalendar
