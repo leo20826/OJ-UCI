@@ -38,8 +38,8 @@ DATABASES = {
 }
 
 # Internationalization.
-LANGUAGE_CODE = 'vi'
-DEFAULT_USER_TIME_ZONE = 'Asia/Ho_Chi_Minh'
+LANGUAGE_CODE = 'en'
+DEFAULT_USER_TIME_ZONE = 'America/Havana'
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
@@ -56,7 +56,7 @@ STATICFILES_FINDERS += ('compressor.finders.CompressorFinder',)
 
 # Email configuration
 ADMINS = ()
-SERVER_EMAIL = 'VNOJ: VNOI Online Judge <vnoj@vnoi.info>'
+SERVER_EMAIL = 'OJ: Online Judge <oj@email.com>'
 
 # Static files configuration
 STATIC_ROOT = '/assets/static/'
@@ -65,10 +65,10 @@ STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesSto
 DMOJ_RESOURCES = '/assets/resources/'
 
 # DMOJ site display settings
-SITE_NAME = 'VNOJ'
+SITE_NAME = 'OJ'
 SITE_FULL_URL = os.environ.get('SITE_FULL_URL', 'http://localhost/')
-SITE_LONG_NAME = 'VNOJ: VNOI Online Judge'
-SITE_ADMIN_EMAIL = 'leduythuc@vnoi.info'
+SITE_LONG_NAME = 'OJ: Online Judge'
+SITE_ADMIN_EMAIL = 'adminc@email.com'
 TERMS_OF_SERVICE_URL = None
 
 # Media files settings
@@ -108,3 +108,7 @@ TIMEZONE_MAP = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Blue_M
 # Custom configuration
 FILE_UPLOAD_PERMISSIONS = 0o644
 VNOJ_CP_TICKET = 5
+
+REGISTRATION_OPEN = True
+DMOJ_RATING_COLORS = True
+X_FRAME_OPTIONS = 'DENY'
