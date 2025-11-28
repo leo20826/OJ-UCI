@@ -1,5 +1,5 @@
 # Core framework
-Django==5.2.*
+Django==5.2.4
 
 # Common Django extras / utils
 django-cleanup>=6.0
