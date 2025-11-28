@@ -1,7 +1,7 @@
 #####################################
 ########## Django settings ##########
 #####################################
-# See <https://docs.djangoproject.com/en/5.0/ref/settings/>
+# See <https://docs.djangoproject.com/en/4.2/ref/settings/>  # ACTUALIZADO: Enlace a doc de 4.2
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY', '')
@@ -112,3 +112,13 @@ VNOJ_CP_TICKET = 5
 REGISTRATION_OPEN = True
 DMOJ_RATING_COLORS = True
 X_FRAME_OPTIONS = 'DENY'
+
+# CONFIGURACIONES ADICIONALES RECOMENDADAS PARA DJANGO 4.2
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'  # RECOMENDADO: Para evitar warnings
+
+# Security settings - RECOMENDADOS para producción
+if not DEBUG:
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
