@@ -26,14 +26,14 @@ class LanguageAdmin(VersionAdmin):
     form = LanguageForm
 
     def save_model(self, request, obj, form, change):
-        super(LanguageAdmin, self).save_model(request, obj, form, change)
+        super().save_model(request, obj, form, change)  # ACTUALIZADO: super() sin argumentos
         if not change and obj.include_in_problem:
             # If this lang has just been created
             # and it should include in problems
             obj.problem_set.set(Problem.objects.all())
 
     def get_form(self, request, obj=None, **kwargs):
-        form = super(LanguageAdmin, self).get_form(request, obj, **kwargs)
+        form = super().get_form(request, obj, **kwargs)  # ACTUALIZADO: super() sin argumentos
         if obj is not None:
             form.base_fields['template'].widget = AceWidget(
                 mode=obj.ace, theme=request.profile.resolved_ace_theme,
@@ -43,7 +43,7 @@ class LanguageAdmin(VersionAdmin):
 
 class GenerateKeyTextInput(TextInput):
     def render(self, name, value, attrs=None, renderer=None):
-        text = super(TextInput, self).render(name, value, attrs)
+        text = super().render(name, value, attrs, renderer)  # ACTUALIZADO: super() sin argumentos y renderer
         return mark_safe(text + format_html(
             """\
 <a href="#" onclick="return false;" class="button" id="id_{0}_regen">{1}</a>
@@ -85,7 +85,7 @@ class JudgeAdmin(VersionAdmin):
         return ([path('<int:id>/disconnect/', self.disconnect_view, name='judge_judge_disconnect'),
                  path('<int:id>/terminate/', self.terminate_view, name='judge_judge_terminate'),
                  path('<int:id>/disable/', self.disable_view, name='judge_judge_disable')] +
-                super(JudgeAdmin, self).get_urls())
+                super().get_urls())  # ACTUALIZADO: super() sin argumentos
 
     def disconnect_judge(self, id, force=False):
         judge = get_object_or_404(Judge, id=id)
@@ -109,7 +109,7 @@ class JudgeAdmin(VersionAdmin):
         return self.readonly_fields
 
     def has_delete_permission(self, request, obj=None):
-        result = super(JudgeAdmin, self).has_delete_permission(request, obj)
+        result = super().has_delete_permission(request, obj)  # ACTUALIZADO: super() sin argumentos
         if result and obj is not None:
             return not obj.online
         return result

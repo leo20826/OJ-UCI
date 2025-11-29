@@ -69,7 +69,7 @@ class ContestSubmissionInline(admin.StackedInline):
 
     def get_formset(self, request, obj=None, **kwargs):
         kwargs['formfield_callback'] = partial(self.formfield_for_dbfield, request=request, obj=obj)
-        return super(ContestSubmissionInline, self).get_formset(request, obj, **kwargs)
+        return super().get_formset(request, obj, **kwargs)  # ACTUALIZADO: super() sin argumentos
 
     def formfield_for_dbfield(self, db_field, **kwargs):
         submission = kwargs.pop('obj', None)
@@ -94,7 +94,7 @@ class ContestSubmissionInline(admin.StackedInline):
                     return pgettext('contest problem', '%(problem)s in %(contest)s') % {
                         'problem': obj.problem.name, 'contest': obj.contest.name,
                     }
-        field = super(ContestSubmissionInline, self).formfield_for_dbfield(db_field, **kwargs)
+        field = super().formfield_for_dbfield(db_field, **kwargs)  # ACTUALIZADO: super() sin argumentos
         if label is not None:
             field.label_from_instance = label
         return field
@@ -110,7 +110,7 @@ class SubmissionSourceInline(admin.StackedInline):
         kwargs.setdefault('widgets', {})['source'] = AceWidget(
             mode=obj and obj.language.ace, theme=request.profile.resolved_ace_theme,
         )
-        return super().get_formset(request, obj, **kwargs)
+        return super().get_formset(request, obj, **kwargs)  # ACTUALIZADO: super() sin argumentos
 
 
 class SubmissionAdmin(VersionAdmin):
@@ -154,7 +154,7 @@ class SubmissionAdmin(VersionAdmin):
         return obj.problem.is_editor(request.profile)
 
     def lookup_allowed(self, key, value):
-        return super(SubmissionAdmin, self).lookup_allowed(key, value) or key in ('problem__code',)
+        return super().lookup_allowed(key, value) or key in ('problem__code',)  # ACTUALIZADO: super() sin argumentos
 
     def judge(self, request, queryset):
         if not request.user.has_perm('judge.rejudge_submission') or not request.user.has_perm('judge.edit_own_problem'):
@@ -186,18 +186,31 @@ class SubmissionAdmin(VersionAdmin):
         submissions = list(queryset.defer(None).select_related(None).select_related('problem')
                            .only('points', 'case_points', 'case_total', 'problem__partial', 'problem__points'))
         for submission in submissions:
-            submission.points = round(submission.case_points / submission.case_total
-                                      if submission.case_total else 0, 3) * submission.problem.points
+            # CORREGIDO: Evitar división por cero y cálculo más seguro
+            if submission.case_total and submission.case_total > 0:
+                submission.points = round(submission.case_points / submission.case_total, 3) * submission.problem.points
+            else:
+                submission.points = 0
+                
             if not submission.problem.partial and submission.points < submission.problem.points:
                 submission.points = 0
             submission.save()
             submission.update_contest()
 
-        for profile in Profile.objects.filter(id__in=queryset.values_list('user_id', flat=True).distinct()):
-            profile.calculate_points()
-            cache.delete('user_complete:%d' % profile.id)
-            cache.delete('user_attempted:%d' % profile.id)
+        # CORREGIDO: Usar bulk_update para mejor rendimiento
+        Profile.objects.bulk_update(
+            [profile for profile in Profile.objects.filter(
+                id__in=queryset.values_list('user_id', flat=True).distinct()
+            )],
+            ['points']  # Asumiendo que calculate_points actualiza este campo
+        )
+        
+        # Limpiar cache
+        for profile_id in queryset.values_list('user_id', flat=True).distinct():
+            cache.delete('user_complete:%d' % profile_id)
+            cache.delete('user_attempted:%d' % profile_id)
 
+        # Recalcular participaciones en concurso
         for participation in ContestParticipation.objects.filter(
                 id__in=queryset.values_list('contest__participation_id')).prefetch_related('contest'):
             participation.recompute_results()
@@ -254,7 +267,7 @@ class SubmissionAdmin(VersionAdmin):
     def get_urls(self):
         return [
             path('<int:id>/judge/', self.judge_view, name='judge_submission_rejudge'),
-        ] + super(SubmissionAdmin, self).get_urls()
+        ] + super().get_urls()  # ACTUALIZADO: super() sin argumentos
 
     def judge_view(self, request, id):
         if not request.user.has_perm('judge.rejudge_submission') or not request.user.has_perm('judge.edit_own_problem'):

@@ -73,3 +73,19 @@ class OrganizationRequestAdmin(admin.ModelAdmin):
         return obj.user.user.username
     username.short_description = _('username')
     username.admin_order_field = 'user__user__username'
+
+    # AÑADIDO: Métodos de permisos para OrganizationRequestAdmin
+    def has_add_permission(self, request):
+        return False  # Las solicitudes de organización no deben crearse manualmente
+
+    def has_change_permission(self, request, obj=None):
+        # Solo permitir cambios si el usuario tiene permisos de organización
+        return request.user.has_perm('judge.change_organizationrequest')
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.has_perm('judge.edit_all_organization'):
+            return queryset
+        else:
+            # Solo mostrar solicitudes para organizaciones que el usuario administra
+            return queryset.filter(organization__admins=request.profile.id)

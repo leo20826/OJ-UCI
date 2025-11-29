@@ -13,7 +13,7 @@ from judge.widgets import AdminMartorWidget, AdminSelect2MultipleWidget, AdminSe
 
 class ProfileForm(ModelForm):
     def __init__(self, *args, **kwargs):
-        super(ProfileForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
         self.fields['display_badge'].queryset = self.instance.badges.all()
         self.fields['display_badge'].required = False
         if 'current_contest' in self.base_fields:
@@ -67,20 +67,23 @@ class ProfileAdmin(NoBatchDeleteMixin, VersionAdmin):
     ordering = ('user__username',)
     search_fields = ('user__username', 'ip', 'user__email')
     list_filter = ('language', TimezoneFilter)
-    actions = ('recalculate_points', 'recalulate_contribution_points')
+    actions = ('recalculate_points', 'recalculate_contribution_points')  # CORREGIDO: typo en nombre
     actions_on_top = True
     actions_on_bottom = True
     form = ProfileForm
     inlines = [WebAuthnInline]
 
     def get_queryset(self, request):
-        return super(ProfileAdmin, self).get_queryset(request).select_related('user')
+        return super().get_queryset(request).select_related('user')  # ACTUALIZADO: super() sin argumentos
 
     def get_fields(self, request, obj=None):
         if request.user.has_perm('judge.totp'):
             fields = list(self.fields)
-            fields.insert(fields.index('is_totp_enabled') + 1, 'totp_key')
-            fields.insert(fields.index('totp_key') + 1, 'scratch_codes')
+            # CORREGIDO: Verificar que los campos existen antes de insertar
+            if 'is_totp_enabled' in fields:
+                totp_index = fields.index('is_totp_enabled')
+                fields.insert(totp_index + 1, 'totp_key')
+                fields.insert(totp_index + 2, 'scratch_codes')
             return tuple(fields)
         else:
             return self.fields
@@ -126,7 +129,7 @@ class ProfileAdmin(NoBatchDeleteMixin, VersionAdmin):
                                             count) % count)
     recalculate_points.short_description = _('Recalculate scores')
 
-    def recalulate_contribution_points(self, request, queryset):
+    def recalculate_contribution_points(self, request, queryset):  # CORREGIDO: Nombre del método
         count = 0
         for profile in queryset:
             profile.calculate_contribution_points()
@@ -134,10 +137,10 @@ class ProfileAdmin(NoBatchDeleteMixin, VersionAdmin):
         self.message_user(request, ngettext('%d user has contribution scores recalculated.',
                                             '%d users have contribution scores recalculated.',
                                             count) % count)
-    recalulate_contribution_points.short_description = _('Recalulate contribution points')
+    recalculate_contribution_points.short_description = _('Recalculate contribution points')  # CORREGIDO: Descripción
 
     def get_form(self, request, obj=None, **kwargs):
-        form = super(ProfileAdmin, self).get_form(request, obj, **kwargs)
+        form = super().get_form(request, obj, **kwargs)  # ACTUALIZADO: super() sin argumentos
         if 'user_script' in form.base_fields:
             # form.base_fields['user_script'] does not exist when the user has only view permission on the model.
             form.base_fields['user_script'].widget = AceWidget(

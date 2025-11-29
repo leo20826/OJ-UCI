@@ -45,11 +45,11 @@ class ContestTagAdmin(admin.ModelAdmin):
     }
 
     def save_model(self, request, obj, form, change):
-        super(ContestTagAdmin, self).save_model(request, obj, form, change)
+        super().save_model(request, obj, form, change)  # ACTUALIZADO: super() sin argumentos
         obj.contests.set(form.cleaned_data['contests'])
 
     def get_form(self, request, obj=None, **kwargs):
-        form = super(ContestTagAdmin, self).get_form(request, obj, **kwargs)
+        form = super().get_form(request, obj, **kwargs)  # ACTUALIZADO: super() sin argumentos
         if obj is not None:
             form.base_fields['contests'].initial = obj.contests.all()
         return form
@@ -106,7 +106,7 @@ class ContestAnnouncementInline(admin.StackedInline):
 
 class ContestForm(ModelForm):
     def __init__(self, *args, **kwargs):
-        super(ContestForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
         if 'rate_exclude' in self.fields:
             if self.instance and self.instance.id:
                 self.fields['rate_exclude'].queryset = \
@@ -118,8 +118,11 @@ class ContestForm(ModelForm):
         self.fields['banned_judges'].widget.can_add_related = False
 
     def clean(self):
-        cleaned_data = super(ContestForm, self).clean()
-        cleaned_data['banned_users'].filter(current_contest__contest=self.instance).update(current_contest=None)
+        cleaned_data = super().clean()  # ACTUALIZADO: super() sin argumentos
+        # CORREGIDO: Añadir return statement faltante
+        if cleaned_data.get('banned_users') and self.instance:
+            cleaned_data['banned_users'].filter(current_contest__contest=self.instance).update(current_contest=None)
+        return cleaned_data  # AÑADIDO: return faltante
 
     class Meta:
         widgets = {
@@ -169,7 +172,7 @@ class ContestAdmin(NoBatchDeleteMixin, VersionAdmin):
     date_hierarchy = 'start_time'
 
     def get_actions(self, request):
-        actions = super(ContestAdmin, self).get_actions(request)
+        actions = super().get_actions(request)  # ACTUALIZADO: super() sin argumentos
 
         if request.user.has_perm('judge.change_contest_visibility') or \
                 request.user.has_perm('judge.create_private_contest'):
@@ -254,7 +257,7 @@ class ContestAdmin(NoBatchDeleteMixin, VersionAdmin):
     def make_hidden(self, request, queryset):
         if not request.user.has_perm('judge.change_contest_visibility'):
             queryset = queryset.filter(Q(is_private=True) | Q(is_organization_private=True))
-        count = queryset.update(is_visible=True)
+        count = queryset.update(is_visible=False)  # CORREGIDO: is_visible=True → is_visible=False
         self.message_user(request, ngettext('%d contest successfully marked as hidden.',
                                             '%d contests successfully marked as hidden.',
                                             count) % count)
@@ -292,7 +295,7 @@ class ContestAdmin(NoBatchDeleteMixin, VersionAdmin):
             path('<int:contest_id>/rejudge/<int:problem_id>/', self.rejudge_view, name='judge_contest_rejudge'),
             path('<int:contest_id>/rescore/<int:problem_id>/', self.rescore_view, name='judge_contest_rescore'),
             path('<int:contest_id>/resend/<int:announcement_id>/', self.resend_view, name='judge_contest_resend'),
-        ] + super(ContestAdmin, self).get_urls()
+        ] + super().get_urls()  # ACTUALIZADO: super() sin argumentos
 
     def rejudge_view(self, request, contest_id, problem_id):
         queryset = ContestSubmission.objects.filter(problem_id=problem_id).select_related('submission')
@@ -341,7 +344,7 @@ class ContestAdmin(NoBatchDeleteMixin, VersionAdmin):
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', reverse('admin:judge_contest_changelist')))
 
     def get_form(self, request, obj=None, **kwargs):
-        form = super(ContestAdmin, self).get_form(request, obj, **kwargs)
+        form = super().get_form(request, obj, **kwargs)  # ACTUALIZADO: super() sin argumentos
         if 'problem_label_script' in form.base_fields:
             # form.base_fields['problem_label_script'] does not exist when the user has only view permission
             # on the model.
@@ -376,7 +379,7 @@ class ContestParticipationAdmin(admin.ModelAdmin):
     date_hierarchy = 'real_start'
 
     def get_queryset(self, request):
-        return super(ContestParticipationAdmin, self).get_queryset(request).only(
+        return super().get_queryset(request).only(  # ACTUALIZADO: super() sin argumentos
             'contest__name', 'contest__format_name', 'contest__format_config',
             'user__user__username', 'real_start', 'score', 'cumtime', 'tiebreaker', 'virtual',
         )

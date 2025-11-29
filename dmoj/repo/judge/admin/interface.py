@@ -21,7 +21,7 @@ class NavigationBarAdmin(DraggableMPTTAdmin):
     sortable = 'order'
 
     def __init__(self, *args, **kwargs):
-        super(NavigationBarAdmin, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos explícitos
         self.__save_model_calls = 0
 
     def linked_path(self, obj):
@@ -30,12 +30,12 @@ class NavigationBarAdmin(DraggableMPTTAdmin):
 
     def save_model(self, request, obj, form, change):
         self.__save_model_calls += 1
-        return super(NavigationBarAdmin, self).save_model(request, obj, form, change)
+        return super().save_model(request, obj, form, change)  # ACTUALIZADO: super() sin argumentos
 
     def changelist_view(self, request, extra_context=None):
         self.__save_model_calls = 0
         with NavigationBar.objects.disable_mptt_updates():
-            result = super(NavigationBarAdmin, self).changelist_view(request, extra_context)
+            result = super().changelist_view(request, extra_context)  # ACTUALIZADO: super() sin argumentos
         if self.__save_model_calls:
             with LockModel(write=(NavigationBar,)):
                 NavigationBar.objects.rebuild()
@@ -53,7 +53,7 @@ class FlatPageAdmin(VersionAdmin, OldFlatPageAdmin):
 
 class BlogPostForm(ModelForm):
     def __init__(self, *args, **kwargs):
-        super(BlogPostForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
         if 'authors' in self.fields:
             # self.fields['authors'] does not exist when the user has only view permission on the model.
             self.fields['authors'].widget.can_add_related = False
@@ -65,7 +65,7 @@ class BlogPostForm(ModelForm):
             'authors': AdminHeavySelect2MultipleWidget(data_view='profile_select2', attrs={'style': 'width: 100%'}),
             'content': AdminMartorWidget(attrs={'data-markdownfy-url': reverse_lazy('blog_preview')}),
             'summary': AdminMartorWidget(attrs={'data-markdownfy-url': reverse_lazy('blog_preview')}),
-            'organization': AdminHeavySelect2Widget(data_view='organization_select2', attr={'style': 'width: 100%'}),
+            'organization': AdminHeavySelect2Widget(data_view='organization_select2', attrs={'style': 'width: 100%'}),  # CORREGIDO: attr → attrs
         }
 
 
@@ -91,7 +91,7 @@ class BlogPostAdmin(VersionAdmin):
 
 class SolutionForm(ModelForm):
     def __init__(self, *args, **kwargs):
-        super(SolutionForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
         self.fields['authors'].widget.can_add_related = False
 
     class Meta:
@@ -157,5 +157,5 @@ class LogEntryAdmin(admin.ModelAdmin):
     object_link.admin_order_field = 'object_repr'
     object_link.short_description = _('object')
 
-    def queryset(self, request):
-        return super().queryset(request).prefetch_related('content_type')
+    def get_queryset(self, request):  # CAMBIADO: queryset → get_queryset (Django 4.2)
+        return super().get_queryset(request).prefetch_related('content_type')

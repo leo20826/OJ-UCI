@@ -20,7 +20,7 @@ class ProblemForm(ModelForm):
     change_message = forms.CharField(max_length=256, label='Edit reason', required=False)
 
     def __init__(self, *args, **kwargs):
-        super(ProblemForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
         self.fields['authors'].widget.can_add_related = False
         self.fields['curators'].widget.can_add_related = False
         self.fields['suggester'].widget.can_add_related = False
@@ -84,7 +84,7 @@ class ProblemClarificationInline(admin.StackedInline):
 
 class ProblemSolutionForm(ModelForm):
     def __init__(self, *args, **kwargs):
-        super(ProblemSolutionForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
         self.fields['authors'].widget.can_add_related = False
 
     class Meta:
@@ -117,7 +117,14 @@ class ProblemTranslationInline(admin.StackedInline):
             return True
         return request.user.has_perm('judge.problem_full_markup') or not obj.is_full_markup
 
-    has_add_permission = has_change_permission = has_delete_permission = has_permission_full_markup
+    def has_add_permission(self, request, obj=None):
+        return self.has_permission_full_markup(request, obj)
+    
+    def has_change_permission(self, request, obj=None):
+        return self.has_permission_full_markup(request, obj)
+    
+    def has_delete_permission(self, request, obj=None):
+        return self.has_permission_full_markup(request, obj)
 
 
 class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
@@ -150,7 +157,7 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
     date_hierarchy = 'date'
 
     def get_actions(self, request):
-        actions = super(ProblemAdmin, self).get_actions(request)
+        actions = super().get_actions(request)  # ACTUALIZADO: super() sin argumentos
 
         if request.user.has_perm('judge.change_public_visibility'):
             func, name, desc = self.get_action('make_public_and_update_publish_date')
@@ -219,15 +226,15 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
     def formfield_for_manytomany(self, db_field, request=None, **kwargs):
         if db_field.name == 'allowed_languages':
             kwargs['widget'] = CheckboxSelectMultipleWithSelectAll()
-        return super(ProblemAdmin, self).formfield_for_manytomany(db_field, request, **kwargs)
+        return super().formfield_for_manytomany(db_field, request, **kwargs)  # ACTUALIZADO: super() sin argumentos
 
     def get_form(self, *args, **kwargs):
-        form = super(ProblemAdmin, self).get_form(*args, **kwargs)
+        form = super().get_form(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
         form.base_fields['authors'].queryset = Profile.objects.all()
         return form
 
     def save_model(self, request, obj, form, change):
-        super(ProblemAdmin, self).save_model(request, obj, form, change)
+        super().save_model(request, obj, form, change)  # ACTUALIZADO: super() sin argumentos
         if (
             form.changed_data and
             any(f in form.changed_data for f in ('is_public', 'is_organization_private', 'partial'))
@@ -237,4 +244,4 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
     def construct_change_message(self, request, form, *args, **kwargs):
         if form.cleaned_data.get('change_message'):
             return form.cleaned_data['change_message']
-        return super(ProblemAdmin, self).construct_change_message(request, form, *args, **kwargs)
+        return super().construct_change_message(request, form, *args, **kwargs)  # ACTUALIZADO: super() sin argumentos

@@ -38,7 +38,9 @@ class CommentAdmin(VersionAdmin):
 
     def hide_comment(self, request, queryset):
         count = queryset.update(hidden=True)
-        queryset.author.calculate_contribution_points()
+        # CORREGIDO: Actualizar puntos de contribución para cada autor
+        for comment in queryset.select_related('author'):
+            comment.author.calculate_contribution_points()
         self.message_user(request, ngettext('%d comment successfully hidden.',
                                             '%d comments successfully hidden.',
                                             count) % count)
@@ -46,7 +48,9 @@ class CommentAdmin(VersionAdmin):
 
     def unhide_comment(self, request, queryset):
         count = queryset.update(hidden=False)
-        queryset.author.calculate_contribution_points()
+        # CORREGIDO: Actualizar puntos de contribución para cada autor
+        for comment in queryset.select_related('author'):
+            comment.author.calculate_contribution_points()
         self.message_user(request, ngettext('%d comment successfully unhidden.',
                                             '%d comments successfully unhidden.',
                                             count) % count)

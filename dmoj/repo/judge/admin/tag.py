@@ -11,7 +11,7 @@ from judge.widgets import AdminHeavySelect2Widget
 
 class TagForm(ModelForm):
     def __init__(self, *args, **kwargs):
-        super(TagForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
         self.fields['group'].widget.can_add_related = False
 
     class Meta:
@@ -22,7 +22,7 @@ class TagForm(ModelForm):
 
 class TagGroupForm(ModelForm):
     def __init__(self, *args, **kwargs):
-        super(TagGroupForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
 
 
 class TagProblemForm(ModelForm):
@@ -50,7 +50,7 @@ class TagAdmin(NoBatchDeleteMixin, VersionAdmin):
     search_fields = ('code', 'name', 'group__code', 'group__name')
     list_max_show_all = 1000
     actions_on_top = True
-    action_on_bottom = True
+    actions_on_bottom = True  # CORREGIDO: action_on_bottom → actions_on_bottom
     form = TagForm
 
     def get_queryset(self, request):
@@ -109,4 +109,4 @@ class TagProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
     def construct_change_message(self, request, form, *args, **kwargs):
         if form.cleaned_data.get('change_message'):
             return form.cleaned_data['change_message']
-        return super(TagProblemAdmin, self).construct_change_message(request, form, *args, **kwargs)
+        return super().construct_change_message(request, form, *args, **kwargs)  # ACTUALIZADO: super() sin argumentos
