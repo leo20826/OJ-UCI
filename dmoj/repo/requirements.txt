@@ -1,13 +1,13 @@
 # Core framework - CAMBIO PRINCIPAL
-Django==4.2.16  # Última versión de la serie 4.2 LTS
+Django==4.2.16
 
 # Common Django extras / utils
-django-cleanup>=8.0  # Actualizado para compatibilidad con Django 4.2
+django-cleanup>=8.0
 django-compressor>=4.6
 django-mptt>=0.16.0
-django-pagedown>=2.3.0  # Versión compatible con Django 4.2
-django-registration-redux>=2.13  # Versión compatible con Django 4.2
-django-reversion>=5.0.0  # Actualizado para Django 4.2
+django-pagedown>=2.2.1,<2.3.0  # CORREGIDO
+django-registration-redux>=2.13
+django-reversion>=5.0.0
 django-social-share>=2.3.0
 django-sortedm2m>=4.0.0
 django-impersonate>=1.9.5
@@ -26,27 +26,27 @@ lxml>=4.9.0
 lxml_html_clean
 Pygments>=2.19
 mistune>=2.0,<4
-social-auth-core>=4.4.0  # Actualizado para compatibilidad
-social-auth-app-django>=5.3.0  # Actualizado para compatibilidad
+social-auth-core>=4.4.0
+social-auth-app-django>=5.3.0
 pytz
-django-statici18n>=2.5  # Actualizado
+django-statici18n>=2.5
 pika
 ua-parser
 pyyaml
 jinja2>=3.1.0
-django_jinja>=2.11.0  # Actualizado para Django 4.2
+django_jinja>=2.11.0
 llist
 requests
 pyotp
 qrcode[pil]
 pymoss
 packaging>=21.0
-celery>=5.3.0,<6  # Versión compatible con Django 4.2
+celery>=5.3.0,<6
 sqlparse
 lupa
 netaddr
-webauthn>=1.1.0  # Actualizado
-bleach[css]>=6.0  # Actualizado
+webauthn>=1.1.0
+bleach[css]>=6.0
 discord-webhook
 django-admin-sortable2>=1.0.0
 icalendar
