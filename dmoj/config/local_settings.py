@@ -301,7 +301,7 @@ LOGGING = {
         "bridge": {
             "level": "INFO",
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": "/var/log/tgboj_briged.log",
+            "filename": "/var/log/oj_briged.log",
             "maxBytes": 10 * 1024 * 1024,
             "backupCount": 10,
             "formatter": "file",

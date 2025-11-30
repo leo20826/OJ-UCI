@@ -928,8 +928,8 @@ msgid "Problem URL"
 msgstr "Link bài"
 
 #: judge/forms.py:426
-msgid "Full URL to the problem, e.g. https://oj.giftedbat.edu.vn/problem/aplusb"
-msgstr "Link tới bài tập, ví dụ: https://oj.giftedbat.edu.vn/problem/aplusb"
+msgid "Full URL to the problem, e.g. https://oj.uci.cu/problem/aplusb"
+msgstr "Link tới bài tập, ví dụ: https://oj.uci.cu/problem/aplusb"
 
 #: judge/forms.py:482 judge/views/register.py:27
 #: templates/blog/top-contrib.html:8 templates/blog/top-pp.html:8

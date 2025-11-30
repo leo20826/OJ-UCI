@@ -1,4 +1,4 @@
-# Contributing to TGBOJ
+# Contributing to OJ
 
 > [!NOTE]
 > It's better to contribute to the upstream VNOJ repository because we only touch the styling here, everything else is

@@ -1,9 +1,9 @@
-# TGBOJ: The Gifted Battlefield Online Judge [![Build Status](https://github.com/TGB-Dev/tgboj-v2/workflows/build/badge.svg)](https://github.com/TGB-Dev/tgboj-v2/actions/) [![AGPL License](https://img.shields.io/badge/license-AGPLv3.0-blue.svg)](http://www.gnu.org/licenses/agpl-3.0)
+# OJ: Online Judge [![Build Status](https://github.com/TGB-Dev/tgboj-v2/workflows/build/badge.svg)](https://github.com/TGB-Dev/tgboj-v2/actions/) [![AGPL License](https://img.shields.io/badge/license-AGPLv3.0-blue.svg)](http://www.gnu.org/licenses/agpl-3.0)
 
-As a fork of [VNOJ](https://github.com/VNOI-Admin/OJ), TGBOJ serves
-as [The Gifted Battlefield](https://giftedbat.edu.vn/)'s official online judge and hosts its programming contests.
+As a fork of [VNOJ](https://github.com/VNOI-Admin/OJ), OJ serves
+as [The Online Judge](https://oj.uci.cu/)'s official online judge and hosts its programming contests.
 
-See it live at [oj.giftedbat.edu.vn](https://oj.giftedbat.edu.vn/)!
+See it live at [oj.uci.cu](https://oj.uci.cu/)!
 
 ## Features
 
@@ -54,16 +54,16 @@ format JS code (in `websocket/`).
 
 Translation contributions are also welcome.
 
-## SETUP TGBOJ GITFLOW (LOCAL)
+## SETUP OJ GITFLOW (LOCAL)
 
 ### Getting started
 
 For the first time contributing to TGB-Online-Judge, you may need to perform some of these steps before you can start
 coding
 
-Now we create a folder, maybe named "TGBOJ"
+Now we create a folder, maybe named "OJ"
 
-> `mkdir TGBOJ`
+> `mkdir OJ`
 
 Now setup the git things
 
