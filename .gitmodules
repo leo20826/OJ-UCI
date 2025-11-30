@@ -1,3 +1,4 @@
 [submodule "dmoj/repo"]
 	path = dmoj/repo
 	url = https://github.com/leo20826/OJ-UCI.git
+	branch = release
