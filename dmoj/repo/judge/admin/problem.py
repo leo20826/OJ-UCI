@@ -20,7 +20,7 @@ class ProblemForm(ModelForm):
     change_message = forms.CharField(max_length=256, label='Edit reason', required=False)
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
+        super(ProblemForm, self).__init__(*args, **kwargs)
         self.fields['authors'].widget.can_add_related = False
         self.fields['curators'].widget.can_add_related = False
         self.fields['suggester'].widget.can_add_related = False
@@ -32,14 +32,12 @@ class ProblemForm(ModelForm):
 
     class Meta:
         widgets = {
-            'authors': AdminHeavySelect2MultipleWidget(data_view='profile_select2', attrs={'style': 'width: 100%'}),
-            'curators': AdminHeavySelect2MultipleWidget(data_view='profile_select2', attrs={'style': 'width: 100%'}),
-            'suggester': AdminHeavySelect2Widget(data_view='profile_select2', attrs={'style': 'width: 100%'}),
-            'testers': AdminHeavySelect2MultipleWidget(data_view='profile_select2', attrs={'style': 'width: 100%'}),
-            'banned_users': AdminHeavySelect2MultipleWidget(data_view='profile_select2',
-                                                            attrs={'style': 'width: 100%'}),
-            'organizations': AdminHeavySelect2MultipleWidget(data_view='organization_select2',
-                                                             attrs={'style': 'width: 100%'}),
+            'authors': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
+            'curators': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
+            'suggester': AdminHeavySelect2Widget(data_view='profile_select2'),
+            'testers': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
+            'banned_users': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
+            'organizations': AdminHeavySelect2MultipleWidget(data_view='organization_select2'),
             'types': AdminSelect2MultipleWidget,
             'group': AdminSelect2Widget,
             'description': AdminMartorWidget(attrs={'data-markdownfy-url': reverse_lazy('problem_preview')}),
@@ -84,12 +82,12 @@ class ProblemClarificationInline(admin.StackedInline):
 
 class ProblemSolutionForm(ModelForm):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
+        super(ProblemSolutionForm, self).__init__(*args, **kwargs)
         self.fields['authors'].widget.can_add_related = False
 
     class Meta:
         widgets = {
-            'authors': AdminHeavySelect2MultipleWidget(data_view='profile_select2', attrs={'style': 'width: 100%'}),
+            'authors': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
             'content': AdminMartorWidget(attrs={'data-markdownfy-url': reverse_lazy('solution_preview')}),
         }
 
@@ -117,14 +115,7 @@ class ProblemTranslationInline(admin.StackedInline):
             return True
         return request.user.has_perm('judge.problem_full_markup') or not obj.is_full_markup
 
-    def has_add_permission(self, request, obj=None):
-        return self.has_permission_full_markup(request, obj)
-    
-    def has_change_permission(self, request, obj=None):
-        return self.has_permission_full_markup(request, obj)
-    
-    def has_delete_permission(self, request, obj=None):
-        return self.has_permission_full_markup(request, obj)
+    has_add_permission = has_change_permission = has_delete_permission = has_permission_full_markup
 
 
 class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
@@ -157,7 +148,7 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
     date_hierarchy = 'date'
 
     def get_actions(self, request):
-        actions = super().get_actions(request)  # ACTUALIZADO: super() sin argumentos
+        actions = super(ProblemAdmin, self).get_actions(request)
 
         if request.user.has_perm('judge.change_public_visibility'):
             func, name, desc = self.get_action('make_public_and_update_publish_date')
@@ -180,20 +171,19 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
                 fields += ('description',)
         return fields
 
+    @admin.display(description=_('authors'))
     def show_authors(self, obj):
         return ', '.join(map(attrgetter('user.username'), obj.authors.all()))
 
-    show_authors.short_description = _('Authors')
-
+    @admin.display(description='')
     def show_public(self, obj):
         return format_html('<a href="{1}">{0}</a>', gettext('View on site'), obj.get_absolute_url())
-
-    show_public.short_description = ''
 
     def _rescore(self, request, problem_id, publicy_changed=False):
         from judge.tasks import rescore_problem
         transaction.on_commit(rescore_problem.s(problem_id, publicy_changed).delay)
 
+    @admin.display(description=_('Mark problems as public and set publish date to now'))
     def make_public_and_update_publish_date(self, request, queryset):
         count = queryset.update(is_public=True, date=timezone.now())
         for problem_id in queryset.values_list('id', flat=True):
@@ -203,8 +193,7 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
                                             '%d problems successfully marked as public.',
                                             count) % count)
 
-    make_public_and_update_publish_date.short_description = _('Mark problems as public and set publish date to now')
-
+    @admin.display(description=_('Mark problems as private'))
     def make_private(self, request, queryset):
         count = queryset.update(is_public=False)
         for problem_id in queryset.values_list('id', flat=True):
@@ -212,8 +201,6 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
         self.message_user(request, ngettext('%d problem successfully marked as private.',
                                             '%d problems successfully marked as private.',
                                             count) % count)
-
-    make_private.short_description = _('Mark problems as private')
 
     def get_queryset(self, request):
         return Problem.get_editable_problems(request.user).prefetch_related('authors__user').distinct()
@@ -226,15 +213,15 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
     def formfield_for_manytomany(self, db_field, request=None, **kwargs):
         if db_field.name == 'allowed_languages':
             kwargs['widget'] = CheckboxSelectMultipleWithSelectAll()
-        return super().formfield_for_manytomany(db_field, request, **kwargs)  # ACTUALIZADO: super() sin argumentos
+        return super(ProblemAdmin, self).formfield_for_manytomany(db_field, request, **kwargs)
 
     def get_form(self, *args, **kwargs):
-        form = super().get_form(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
+        form = super(ProblemAdmin, self).get_form(*args, **kwargs)
         form.base_fields['authors'].queryset = Profile.objects.all()
         return form
 
     def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)  # ACTUALIZADO: super() sin argumentos
+        super(ProblemAdmin, self).save_model(request, obj, form, change)
         if (
             form.changed_data and
             any(f in form.changed_data for f in ('is_public', 'is_organization_private', 'partial'))
@@ -244,4 +231,4 @@ class ProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
     def construct_change_message(self, request, form, *args, **kwargs):
         if form.cleaned_data.get('change_message'):
             return form.cleaned_data['change_message']
-        return super().construct_change_message(request, form, *args, **kwargs)  # ACTUALIZADO: super() sin argumentos
+        return super(ProblemAdmin, self).construct_change_message(request, form, *args, **kwargs)

@@ -9,14 +9,16 @@ from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import path, reverse
+from django.utils.decorators import method_decorator
 from django.utils.html import format_html
 from django.utils.translation import gettext, gettext_lazy as _, ngettext, pgettext
+from django.views.decorators.http import require_POST
 from reversion.admin import VersionAdmin
 
-from django_ace import AceWidget
 from judge.models import ContestParticipation, ContestProblem, ContestSubmission, Profile, Submission, \
     SubmissionSource, SubmissionTestCase
 from judge.utils.raw_sql import use_straight_join
+from judge.widgets import AdminAceWidget
 
 
 class SubmissionStatusFilter(admin.SimpleListFilter):
@@ -69,7 +71,7 @@ class ContestSubmissionInline(admin.StackedInline):
 
     def get_formset(self, request, obj=None, **kwargs):
         kwargs['formfield_callback'] = partial(self.formfield_for_dbfield, request=request, obj=obj)
-        return super().get_formset(request, obj, **kwargs)  # ACTUALIZADO: super() sin argumentos
+        return super(ContestSubmissionInline, self).get_formset(request, obj, **kwargs)
 
     def formfield_for_dbfield(self, db_field, **kwargs):
         submission = kwargs.pop('obj', None)
@@ -80,21 +82,23 @@ class ContestSubmissionInline(admin.StackedInline):
                                                                          contest__problems=submission.problem) \
                     .only('id', 'contest__name', 'virtual')
 
-                def label(obj):
+                def _label(obj):
                     if obj.spectate:
                         return gettext('%s (spectating)') % obj.contest.name
                     if obj.virtual:
                         return gettext('%s (virtual %d)') % (obj.contest.name, obj.virtual)
                     return obj.contest.name
+                label = _label
             elif db_field.name == 'problem':
                 kwargs['queryset'] = ContestProblem.objects.filter(problem=submission.problem) \
                     .only('id', 'problem__name', 'contest__name')
 
-                def label(obj):
+                def _label(obj):
                     return pgettext('contest problem', '%(problem)s in %(contest)s') % {
                         'problem': obj.problem.name, 'contest': obj.contest.name,
                     }
-        field = super().formfield_for_dbfield(db_field, **kwargs)  # ACTUALIZADO: super() sin argumentos
+                label = _label
+        field = super(ContestSubmissionInline, self).formfield_for_dbfield(db_field, **kwargs)
         if label is not None:
             field.label_from_instance = label
         return field
@@ -107,10 +111,10 @@ class SubmissionSourceInline(admin.StackedInline):
     extra = 0
 
     def get_formset(self, request, obj=None, **kwargs):
-        kwargs.setdefault('widgets', {})['source'] = AceWidget(
+        kwargs.setdefault('widgets', {})['source'] = AdminAceWidget(
             mode=obj and obj.language.ace, theme=request.profile.resolved_ace_theme,
         )
-        return super().get_formset(request, obj, **kwargs)  # ACTUALIZADO: super() sin argumentos
+        return super().get_formset(request, obj, **kwargs)
 
 
 class SubmissionAdmin(VersionAdmin):
@@ -154,8 +158,9 @@ class SubmissionAdmin(VersionAdmin):
         return obj.problem.is_editor(request.profile)
 
     def lookup_allowed(self, key, value):
-        return super().lookup_allowed(key, value) or key in ('problem__code',)  # ACTUALIZADO: super() sin argumentos
+        return super(SubmissionAdmin, self).lookup_allowed(key, value) or key in ('problem__code',)
 
+    @admin.display(description=_('Rejudge the selected submissions'))
     def judge(self, request, queryset):
         if not request.user.has_perm('judge.rejudge_submission') or not request.user.has_perm('judge.edit_own_problem'):
             self.message_user(request, gettext('You do not have the permission to rejudge submissions.'),
@@ -176,8 +181,8 @@ class SubmissionAdmin(VersionAdmin):
         self.message_user(request, ngettext('%d submission was successfully scheduled for rejudging.',
                                             '%d submissions were successfully scheduled for rejudging.',
                                             judged) % judged)
-    judge.short_description = _('Rejudge the selected submissions')
 
+    @admin.display(description=_('Rescore the selected submissions'))
     def recalculate_score(self, request, queryset):
         if not request.user.has_perm('judge.rejudge_submission'):
             self.message_user(request, gettext('You do not have the permission to rejudge submissions.'),
@@ -186,31 +191,18 @@ class SubmissionAdmin(VersionAdmin):
         submissions = list(queryset.defer(None).select_related(None).select_related('problem')
                            .only('points', 'case_points', 'case_total', 'problem__partial', 'problem__points'))
         for submission in submissions:
-            # CORREGIDO: Evitar división por cero y cálculo más seguro
-            if submission.case_total and submission.case_total > 0:
-                submission.points = round(submission.case_points / submission.case_total, 3) * submission.problem.points
-            else:
-                submission.points = 0
-                
+            submission.points = round(submission.case_points / submission.case_total
+                                      if submission.case_total else 0, 3) * submission.problem.points
             if not submission.problem.partial and submission.points < submission.problem.points:
                 submission.points = 0
             submission.save()
             submission.update_contest()
 
-        # CORREGIDO: Usar bulk_update para mejor rendimiento
-        Profile.objects.bulk_update(
-            [profile for profile in Profile.objects.filter(
-                id__in=queryset.values_list('user_id', flat=True).distinct()
-            )],
-            ['points']  # Asumiendo que calculate_points actualiza este campo
-        )
-        
-        # Limpiar cache
-        for profile_id in queryset.values_list('user_id', flat=True).distinct():
-            cache.delete('user_complete:%d' % profile_id)
-            cache.delete('user_attempted:%d' % profile_id)
+        for profile in Profile.objects.filter(id__in=queryset.values_list('user_id', flat=True).distinct()):
+            profile.calculate_points()
+            cache.delete('user_complete:%d' % profile.id)
+            cache.delete('user_attempted:%d' % profile.id)
 
-        # Recalcular participaciones en concurso
         for participation in ContestParticipation.objects.filter(
                 id__in=queryset.values_list('contest__participation_id')).prefetch_related('contest'):
             participation.recompute_results()
@@ -218,28 +210,24 @@ class SubmissionAdmin(VersionAdmin):
         self.message_user(request, ngettext('%d submission was successfully rescored.',
                                             '%d submissions were successfully rescored.',
                                             len(submissions)) % len(submissions))
-    recalculate_score.short_description = _('Rescore the selected submissions')
 
+    @admin.display(description=_('problem code'), ordering='problem__code')
     def problem_code(self, obj):
         return obj.problem.code
-    problem_code.short_description = _('Problem code')
-    problem_code.admin_order_field = 'problem__code'
 
+    @admin.display(description=_('problem name'), ordering='problem__name')
     def problem_name(self, obj):
         return obj.problem.name
-    problem_name.short_description = _('Problem name')
-    problem_name.admin_order_field = 'problem__name'
 
+    @admin.display(description=_('user'), ordering='user__user__username')
     def user_column(self, obj):
         return obj.user.user.username
-    user_column.admin_order_field = 'user__user__username'
-    user_column.short_description = _('User')
 
+    @admin.display(description=_('time'), ordering='time')
     def execution_time(self, obj):
         return round(obj.time, 2) if obj.time is not None else 'None'
-    execution_time.short_description = _('Time')
-    execution_time.admin_order_field = 'time'
 
+    @admin.display(description=_('memory'), ordering='memory')
     def pretty_memory(self, obj):
         memory = obj.memory
         if memory is None:
@@ -248,27 +236,25 @@ class SubmissionAdmin(VersionAdmin):
             return gettext('%d KB') % memory
         else:
             return gettext('%.2f MB') % (memory / 1024)
-    pretty_memory.admin_order_field = 'memory'
-    pretty_memory.short_description = _('Memory')
 
+    @admin.display(description=_('language'), ordering='language__name')
     def language_column(self, obj):
         return obj.language.name
-    language_column.admin_order_field = 'language__name'
-    language_column.short_description = _('Language')
 
+    @admin.display(description='')
     def judge_column(self, obj):
         if obj.is_locked:
             return format_html('<input type="button" disabled value="{0}"/>', _('Locked'))
         else:
-            return format_html('<input type="button" value="{0}" onclick="location.href=\'{1}\'"/>', _('Rejudge'),
+            return format_html('<a class="button action-link" href="{1}">{0}</a>', _('Rejudge'),
                                reverse('admin:judge_submission_rejudge', args=(obj.id,)))
-    judge_column.short_description = ''
 
     def get_urls(self):
         return [
             path('<int:id>/judge/', self.judge_view, name='judge_submission_rejudge'),
-        ] + super().get_urls()  # ACTUALIZADO: super() sin argumentos
+        ] + super(SubmissionAdmin, self).get_urls()
 
+    @method_decorator(require_POST)
     def judge_view(self, request, id):
         if not request.user.has_perm('judge.rejudge_submission') or not request.user.has_perm('judge.edit_own_problem'):
             raise PermissionDenied()
@@ -277,4 +263,4 @@ class SubmissionAdmin(VersionAdmin):
                 not submission.problem.is_editor(request.profile):
             raise PermissionDenied()
         submission.judge(rejudge=True, rejudge_user=request.user)
-        return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/'))
+        return HttpResponseRedirect(request.headers.get('referer', '/'))

@@ -1,0 +1,101 @@
+localhost {
+	rate_limit {
+		zone by_ip {
+			key {remote_host}
+			events 300
+			window 5s
+		}
+
+		log_key
+	}
+
+	request_body {
+		max_size 48MB
+	}
+
+	header {
+		X-UA-Compatible IE=Edge,chrome=1
+		X-Content-Type-Options nosniff
+		X-XSS-Protection 1; mode=block
+	}
+
+	reverse_proxy site:8000 {
+		transport uwsgi
+	}
+
+	handle_errors 502 504 {
+		rewrite * /502.html
+		file_server
+	}
+
+	handle_errors 403 404 {
+		reverse_proxy site:8000 {
+			transport uwsgi
+			replace_status {err.status_code}
+		}
+	}
+
+	route /502.html {
+		root * /assets
+		file_server
+	}
+
+	route /logo.png {
+		root * /assets
+		file_server
+	}
+
+	route /robots.txt {
+		root * /assets
+		file_server
+	}
+
+	route /icons/* {
+		root * /assets/resources/icons
+		file_server
+	}
+
+	route /static/* {
+		encode gzip
+		header Cache-Control "public, max-age=31536000, immutable"
+		root * /assets
+		file_server
+	}
+
+	route /martor/* {
+		root * /media
+		file_server
+	}
+
+	route /pdf/* {
+		root * /media
+		file_server
+	}
+
+	route /submission_file/* {
+		root * /media
+		file_server
+	}
+
+	@internal client_ip private_ranges
+
+	handle @internal {
+		route /userdatacache/* {
+			root * /
+			file_server
+		}
+
+		route /contestdatacache/* {
+			root * /
+			file_server
+		}
+	}
+
+	route /event/* {
+		reverse_proxy wsevent:15100
+	}
+
+	route /channels/* {
+		reverse_proxy wsevent:15102
+	}
+}

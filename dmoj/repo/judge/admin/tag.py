@@ -11,18 +11,18 @@ from judge.widgets import AdminHeavySelect2Widget
 
 class TagForm(ModelForm):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
+        super(TagForm, self).__init__(*args, **kwargs)
         self.fields['group'].widget.can_add_related = False
 
     class Meta:
         widgets = {
-            'group': AdminHeavySelect2Widget(data_view='taggroup_select2', attrs={'style': 'width: 100%'}),
+            'group': AdminHeavySelect2Widget(data_view='taggroup_select2'),
         }
 
 
 class TagGroupForm(ModelForm):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)  # ACTUALIZADO: super() sin argumentos
+        super(TagGroupForm, self).__init__(*args, **kwargs)
 
 
 class TagProblemForm(ModelForm):
@@ -32,8 +32,8 @@ class TagProblemForm(ModelForm):
 class TagDataInlineForm(ModelForm):
     class Meta:
         widgets = {
-            'assigner': AdminHeavySelect2Widget(data_view='profile_select2', attrs={'style': 'width: 100%;'}),
-            'tag': AdminHeavySelect2Widget(data_view='tag_select2', attrs={'style': 'width: 100%;'}),
+            'assigner': AdminHeavySelect2Widget(data_view='profile_select2'),
+            'tag': AdminHeavySelect2Widget(data_view='tag_select2'),
         }
 
 
@@ -50,7 +50,7 @@ class TagAdmin(NoBatchDeleteMixin, VersionAdmin):
     search_fields = ('code', 'name', 'group__code', 'group__name')
     list_max_show_all = 1000
     actions_on_top = True
-    actions_on_bottom = True  # CORREGIDO: action_on_bottom → actions_on_bottom
+    action_on_bottom = True
     form = TagForm
 
     def get_queryset(self, request):
@@ -109,4 +109,4 @@ class TagProblemAdmin(NoBatchDeleteMixin, VersionAdmin):
     def construct_change_message(self, request, form, *args, **kwargs):
         if form.cleaned_data.get('change_message'):
             return form.cleaned_data['change_message']
-        return super().construct_change_message(request, form, *args, **kwargs)  # ACTUALIZADO: super() sin argumentos
+        return super(TagProblemAdmin, self).construct_change_message(request, form, *args, **kwargs)

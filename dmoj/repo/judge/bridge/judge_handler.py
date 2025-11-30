@@ -15,6 +15,7 @@ from judge.bridge.base_handler import ZlibPacketHandler, proxy_list
 from judge.caching import finished_submission
 from judge.models import Judge, Language, LanguageLimit, Problem, Profile, \
     RuntimeVersion, Submission, SubmissionTestCase
+from judge.models.problem import ProblemTestcaseResultAccess
 from judge.utils.url import get_absolute_submission_file_url
 
 logger = logging.getLogger('judge.bridge')
@@ -35,7 +36,7 @@ def _ensure_connection():
 class JudgeHandler(ZlibPacketHandler):
     proxies = proxy_list(settings.BRIDGED_JUDGE_PROXIES or [])
 
-    def __init__(self, request, client_address, server, judges):
+    def __init__(self, request, client_address, server, judges, ignore_problems_packet=True):
         super().__init__(request, client_address, server)
 
         self.judges = judges
@@ -52,11 +53,11 @@ class JudgeHandler(ZlibPacketHandler):
             'submission-acknowledged': self.on_submission_acknowledged,
             'ping-response': self.on_ping_response,
             'supported-problems': self.on_supported_problems,
+            'executors': self.on_executors,
             'handshake': self.on_handshake,
         }
         self._working = False
         self._no_response_job = None
-        self._problems = []
         self.executors = {}
         self.problems = {}
         self.latency = None
@@ -64,6 +65,7 @@ class JudgeHandler(ZlibPacketHandler):
         self.load = 1e100
         self.name = None
         self.is_disabled = False
+        self.tier = None
         self.batch_id = None
         self.in_batch = False
         self._stop_ping = threading.Event()
@@ -74,6 +76,7 @@ class JudgeHandler(ZlibPacketHandler):
         self.update_counter = {}
         self.judge = None
         self.judge_address = None
+        self.ignore_problems_packet = ignore_problems_packet
 
         self._submission_cache_id = None
         self._submission_cache = {}
@@ -112,27 +115,27 @@ class JudgeHandler(ZlibPacketHandler):
             json_log.warning(self._make_json_log(action='auth', judge=id, info='judge authenticated but is blocked'))
             return False
 
+        # Cache judge tier for use by JudgeList
+        self.tier = judge.tier
+
         return True
 
     def _connected(self):
         judge = self.judge = Judge.objects.get(name=self.name)
         judge.start_time = timezone.now()
         judge.online = True
-        judge.problems.set(Problem.objects.filter(code__in=list(self.problems.keys())))
-        judge.runtimes.set(Language.objects.filter(key__in=list(self.executors.keys())))
+
+        self.update_runtimes()
+
+        if self.ignore_problems_packet:
+            self.problems = self.judges.problems
+            judge.problems.set(self.judges.problem_ids)
+        else:
+            judge.problems.set(Problem.objects.filter(code__in=list(self.problems)).values_list('id', flat=True))
 
         # Cache is_disabled for faster access
         self.is_disabled = judge.is_disabled
 
-        # Delete now in case we somehow crashed and left some over from the last connection
-        RuntimeVersion.objects.filter(judge=judge).delete()
-        versions = []
-        for lang in judge.runtimes.all():
-            versions += [
-                RuntimeVersion(language=lang, name=name, version='.'.join(map(str, version)), priority=idx, judge=judge)
-                for idx, (name, version) in enumerate(self.executors[lang.key])
-            ]
-        RuntimeVersion.objects.bulk_create(versions)
         judge.last_ip = self.client_address[0]
         judge.save()
         self.judge_address = '[%s]:%s' % (self.client_address[0], self.client_address[1])
@@ -165,8 +168,7 @@ class JudgeHandler(ZlibPacketHandler):
             return
 
         self.timeout = 60
-        self._problems = packet['problems']
-        self.problems = dict(self._problems)
+        self.problems = set(p[0] for p in packet['problems'])
         self.executors = packet['executors']
         self.name = packet['id']
 
@@ -324,15 +326,42 @@ class JudgeHandler(ZlibPacketHandler):
         if not Submission.objects.filter(id=id).update(batch=True):
             logger.warning('Unknown submission: %s', id)
 
-    def on_supported_problems(self, packet):
-        logger.info('%s: Updated problem list', self.name)
-        self._problems = packet['problems']
-        self.problems = dict(self._problems)
-        if not self.working:
-            self.judges.update_problems(self)
+    def update_problems(self, problems, problem_ids):
+        logger.info('%s: Updating problem list', self.name)
+        self.problems = problems
+        self.judge.problems.set(problem_ids)
+        logger.info('%s: Updated %d problems', self.name, len(problem_ids))
+        json_log.info(self._make_json_log(action='update-problems', count=len(problem_ids)))
 
-        self.judge.problems.set(Problem.objects.filter(code__in=list(self.problems.keys())))
-        json_log.info(self._make_json_log(action='update-problems', count=len(self.problems)))
+    def on_supported_problems(self, packet):
+        if self.ignore_problems_packet:
+            return
+
+        problems = set(p[0] for p in packet['problems'])
+        problem_ids = list(Problem.objects.filter(code__in=list(problems)).values_list('id', flat=True))
+        self.judges.update_problems(self, problems, problem_ids)
+
+    def update_runtimes(self):
+        self.judge.runtimes.set(
+            Language.objects.filter(key__in=list(self.executors.keys())).values_list('id', flat=True),
+        )
+
+        RuntimeVersion.objects.filter(judge=self.judge).delete()
+        versions = []
+        for lang in self.judge.runtimes.all():
+            versions += [
+                RuntimeVersion(language=lang, name=name, version='.'.join(map(str, version)),
+                               priority=idx, judge=self.judge)
+                for idx, (name, version) in enumerate(self.executors[lang.key])
+            ]
+        RuntimeVersion.objects.bulk_create(versions)
+
+    def on_executors(self, packet):
+        logger.info('%s: Updating runtimes', self.name)
+        self.executors = packet['executors']
+        self.update_runtimes()
+        logger.info('%s: Updated runtimes', self.name)
+        json_log.info(self._make_json_log(action='update-executors', executors=list(self.executors.keys())))
 
     def on_grading_begin(self, packet):
         logger.info('%s: Grading has begun on: %s', self.name, packet['submission-id'])
@@ -361,7 +390,8 @@ class JudgeHandler(ZlibPacketHandler):
             json_log.error(self._make_json_log(packet, action='grading-end', info='unknown submission'))
             return
 
-        time = 0
+        time = 0.0
+        total_time = 0.0
         memory = 0
         points = 0.0
         total = 0
@@ -370,7 +400,9 @@ class JudgeHandler(ZlibPacketHandler):
         batches = {}  # batch number: (points, total)
 
         for case in SubmissionTestCase.objects.filter(submission=submission):
-            time += case.time
+            time = max(time, case.time)
+            total_time += case.time
+            memory = max(memory, case.memory)
             if not case.batch:
                 points += case.points
                 total += case.total
@@ -380,7 +412,6 @@ class JudgeHandler(ZlibPacketHandler):
                     batches[case.batch][1] = max(batches[case.batch][1], case.total)
                 else:
                     batches[case.batch] = [case.points, case.total]
-            memory = max(memory, case.memory)
             i = status_codes.index(case.status)
             if i > status:
                 status = i
@@ -420,17 +451,11 @@ class JudgeHandler(ZlibPacketHandler):
         problem._updating_stats_only = True
         problem.update_stats()
         submission.update_contest()
+        submission.update_credit(total_time)
 
         finished_submission(submission)
 
-        event.post('sub_%s' % submission.id_secret, {
-            'type': 'grading-end',
-            'time': time,
-            'memory': memory,
-            'points': float(points),
-            'total': float(problem.points),
-            'result': submission.result,
-        })
+        event.post('sub_%s' % submission.id_secret, {'type': 'grading-end'})
         if hasattr(submission, 'contest'):
             participation = submission.contest.participation
             event.post('contest_%d' % participation.contest_id, {'type': 'update'})
@@ -441,10 +466,7 @@ class JudgeHandler(ZlibPacketHandler):
         self._free_self(packet)
 
         if Submission.objects.filter(id=packet['submission-id']).update(status='CE', result='CE', error=packet['log']):
-            event.post('sub_%s' % Submission.get_id_secret(packet['submission-id']), {
-                'type': 'compile-error',
-                'log': packet['log'],
-            })
+            event.post('sub_%s' % Submission.get_id_secret(packet['submission-id']), {'type': 'compile-error'})
             self._post_update_submission(packet['submission-id'], 'compile-error', done=True)
             json_log.info(self._make_json_log(packet, action='compile-error', log=packet['log'],
                                               finish=True, result='CE'))
@@ -487,8 +509,8 @@ class JudgeHandler(ZlibPacketHandler):
         self._free_self(packet)
 
         if Submission.objects.filter(id=packet['submission-id']).update(status='AB', result='AB', points=0):
-            event.post('sub_%s' % Submission.get_id_secret(packet['submission-id']), {'type': 'aborted-submission'})
-            self._post_update_submission(packet['submission-id'], 'terminated', done=True)
+            event.post('sub_%s' % Submission.get_id_secret(packet['submission-id']), {'type': 'aborted'})
+            self._post_update_submission(packet['submission-id'], 'aborted', done=True)
             json_log.info(self._make_json_log(packet, action='aborted', finish=True, result='AB'))
         else:
             logger.warning('Unknown submission: %s', packet['submission-id'])
@@ -562,6 +584,12 @@ class JudgeHandler(ZlibPacketHandler):
                 runtime_version=result.get('runtime-version', ''),
             ))
 
+        SubmissionTestCase.objects.bulk_create(bulk_test_case_updates)
+
+        data = self._get_submission_cache(id)
+        if data['problem__testcase_result_visibility_mode'] != ProblemTestcaseResultAccess.ALL_TEST_CASE:
+            return
+
         do_post = True
 
         if id in self.update_counter:
@@ -577,13 +605,8 @@ class JudgeHandler(ZlibPacketHandler):
             self.update_counter[id] = (1, time.monotonic())
 
         if do_post:
-            event.post('sub_%s' % Submission.get_id_secret(id), {
-                'type': 'test-case',
-                'id': max_position,
-            })
+            event.post('sub_%s' % Submission.get_id_secret(id), {'type': 'test-case'})
             self._post_update_submission(id, state='test-case')
-
-        SubmissionTestCase.objects.bulk_create(bulk_test_case_updates)
 
     def on_malformed(self, packet):
         logger.error('%s: Malformed packet: %s', self.name, packet)
@@ -624,16 +647,18 @@ class JudgeHandler(ZlibPacketHandler):
         data.update(kwargs)
         return json.dumps(data)
 
-    def _post_update_submission(self, id, state, done=False):
-        if self._submission_cache_id == id:
-            data = self._submission_cache
-        else:
-            self._submission_cache = data = Submission.objects.filter(id=id).values(
-                'problem__is_public', 'contest_object_id',
+    def _get_submission_cache(self, id):
+        if self._submission_cache_id != id:
+            self._submission_cache = Submission.objects.filter(id=id).values(
+                'problem__is_public', 'problem__testcase_result_visibility_mode', 'contest_object_id',
                 'user_id', 'problem_id', 'status', 'language__key',
             ).get()
             self._submission_cache_id = id
 
+        return self._submission_cache
+
+    def _post_update_submission(self, id, state, done=False):
+        data = self._get_submission_cache(id)
         if data['problem__is_public']:
             event.post('submissions', {
                 'type': 'done-submission' if done else 'update-submission',

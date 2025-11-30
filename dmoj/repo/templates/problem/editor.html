@@ -5,6 +5,7 @@
     {% include "leave-warning.html" %}
 
     <script src="{{ static('vnoj/jquery.formset.js') }}"></script>
+    <script src="{{ static('libs/featherlight/featherlight.min.js') }}"></script>
 
     <script>
         $(function() {
@@ -21,7 +22,7 @@
             {% endif %}
 
             var noResults = function () {
-                return '{{ _('Press Enter to select multiple users...') }}';
+                return {{ _('Press Enter to select multiple users...')|htmltojs }};
             };
 
             $(document).one('click', '#id_testers + .select2', function (e) {
@@ -91,6 +92,12 @@
         <div class="alert alert-warning alert-dismissable">
             <a class="close">x</a>
             <a href="{{ url('admin:judge_problem_change', object.id) }}">{{ _('Edit problem in admin panel for more options') }}</a>
+        </div>
+    {% endif %}
+    {% if perms.judge.import_polygon_package %}
+        <div class="alert alert-warning alert-dismissable">
+            <a class="close">x</a>
+            <a href="{{ url('problem_update_polygon', object.code) }}">{{ _('Update problem from Codeforces Polygon package') }}</a>
         </div>
     {% endif %}
     <form action="" method="post" class="form-area" enctype="multipart/form-data" style="display: flex; justify-content: center; flex-direction: column;">

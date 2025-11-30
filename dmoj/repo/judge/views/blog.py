@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.generic import CreateView, ListView, UpdateView
+from django.views.generic.detail import SingleObjectMixin, View
 from reversion import revisions
 
 from judge.comments import CommentedDetailView
@@ -24,6 +25,7 @@ from judge.utils.cachedict import CacheDict
 from judge.utils.diggpaginator import DiggPaginator
 from judge.utils.opengraph import generate_opengraph
 from judge.utils.tickets import filter_visible_tickets
+from judge.utils.unicode import remove_accents
 from judge.utils.views import TitleMixin, generic_message
 
 
@@ -167,6 +169,7 @@ class PostList(PostListBase):
         context['all_blogs_link'] = f"{reverse('home')}?show_all_blogs=true"
 
         context['show_all_blogs'] = self.show_all_blogs
+        context['gcse_url'] = settings.GOOGLE_SEARCH_ENGINE_URL
 
         context['page_prefix'] = reverse('blog_post_list')
         context['comments'] = Comment.most_recent(self.request.user, 10)
@@ -270,6 +273,7 @@ class BlogPostCreate(TitleMixin, CreateView):
     template_name = 'blog/edit.html'
     model = BlogPost
     form_class = BlogPostForm
+    context_object_name = 'post'
 
     def get_title(self):
         return _('Creating new blog post')
@@ -277,10 +281,15 @@ class BlogPostCreate(TitleMixin, CreateView):
     def get_content_title(self):
         return _('Creating new blog post')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
     def form_valid(self, form):
         with revisions.create_revision(atomic=True):
             post = form.save()
-            post.slug = self.request.user.username.lower()
+            post.slug = remove_accents(self.request.user.username.lower())
             post.publish_on = timezone.now()
             post.authors.add(self.request.user.profile)
             post.save()
@@ -309,6 +318,7 @@ class BlogPostEdit(BlogPostMixin, TitleMixin, UpdateView):
     template_name = 'blog/edit.html'
     model = BlogPost
     form_class = BlogPostForm
+    context_object_name = 'post'
 
     def get_title(self):
         return _('Updating blog post')
@@ -319,7 +329,13 @@ class BlogPostEdit(BlogPostMixin, TitleMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['edit'] = True
+        context['delete'] = self.request.user.has_perm('judge.delete_blogpost')
         return context
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
 
     def form_valid(self, form):
         with revisions.create_revision(atomic=True):
@@ -332,3 +348,19 @@ class BlogPostEdit(BlogPostMixin, TitleMixin, UpdateView):
             return generic_message(request, _('Permission denied'),
                                    _('You cannot edit blog post.'))
         return super().dispatch(request, *args, **kwargs)
+
+
+class BlogPostDelete(BlogPostMixin, SingleObjectMixin, View):
+    def dispatch(self, request, *args, **kwargs):
+        if request.method != 'POST':
+            return HttpResponseForbidden()
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        if not request.user.has_perm('judge.delete_blogpost'):
+            raise PermissionDenied()
+
+        post = self.get_object()
+        post.delete()
+        return HttpResponseRedirect('/')

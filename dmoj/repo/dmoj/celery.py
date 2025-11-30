@@ -1,39 +1,46 @@
-# dmoj/celery.py
 import logging
-import os
 import socket
 
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import task_failure
-
-# Establecer settings module por defecto para entornos donde no esté configurado.
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'dmoj.settings')
 
 app = Celery('dmoj')
 
-# Cargar configuración desde Django settings con prefijo CELERY_*
-app.config_from_object('django.conf:settings', namespace='CELERY')
+from django.conf import settings  # noqa: E402, I202, django must be imported here
+app.config_from_object(settings, namespace='CELERY')
 
-# Si usas valores secretos diferentes (p. ej. inyectados por Docker/K8s), respetarlos.
-from django.conf import settings  # noqa: E402 (django must be imported after env var set)
 if hasattr(settings, 'CELERY_BROKER_URL_SECRET'):
     app.conf.broker_url = settings.CELERY_BROKER_URL_SECRET
 if hasattr(settings, 'CELERY_RESULT_BACKEND_SECRET'):
     app.conf.result_backend = settings.CELERY_RESULT_BACKEND_SECRET
 
-# Autodiscover tasks in installed apps (busca tasks.py)
+# Load task modules from all registered Django app configs.
 app.autodiscover_tasks()
 
-# Logger para reportar errores
+# Logger to enable reporting of errors.
 logger = logging.getLogger('judge.celery')
+
+# Load periodic tasks
+app.conf.beat_schedule = {
+    'daily-queue-time-stats': {
+        'task': 'judge.tasks.webhook.queue_time_stats',
+        'schedule': crontab(minute=0, hour=0),
+        'options': {
+            'expires': 60 * 60 * 24,
+        },
+    },
+    'organization-monthly-reset': {
+        'task': 'judge.tasks.organization.organization_monthly_reset',
+        'schedule': crontab(minute=0, hour=0, day_of_month=1),
+        'options': {
+            'expires': 60 * 60 * 24,
+        },
+    },
+}
 
 
 @task_failure.connect()
 def celery_failure_log(sender, task_id, exception, traceback, *args, **kwargs):
-    logger.error(
-        'Celery Task %s: %s on %s',
-        sender.name,
-        task_id,
-        socket.gethostname(),  # noqa: G201
-        exc_info=(type(exception), exception, traceback),
-    )
+    logger.error('Celery Task %s: %s on %s', sender.name, task_id, socket.gethostname(),  # noqa: G201
+                 exc_info=(type(exception), exception, traceback))

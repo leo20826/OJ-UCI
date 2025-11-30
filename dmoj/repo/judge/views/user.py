@@ -1,8 +1,7 @@
+import datetime
 import itertools
 import json
 import os
-from datetime import datetime
-from datetime import timedelta
 from operator import attrgetter, itemgetter
 
 import pytz
@@ -19,6 +18,7 @@ from django.db.models import Count, F, FilteredRelation, Max, Min, Prefetch, Q
 from django.db.models.expressions import Value
 from django.db.models.fields import DateField
 from django.db.models.functions import Cast, Coalesce, ExtractYear
+from django.forms import Form
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -102,7 +102,7 @@ class UserPage(TitleMixin, UserMixin, DetailView):
             return super(UserPage, self).dispatch(request, *args, **kwargs)
         except Http404:
             return generic_message(request, _('No such user'), _('No user handle "%s".') %
-                                   self.kwargs.get(self.slug_url_kwarg, None))
+                                   self.kwargs.get(self.slug_url_kwarg, None), status=404)
 
     def get_title(self):
         return (_('My account') if self.request.user == self.object.user else
@@ -157,6 +157,11 @@ class CustomLoginView(LoginView):
     authentication_form = CustomAuthenticationForm
     redirect_authenticated_user = True
 
+    def get_context_data(self, **kwargs):
+        context = super(CustomLoginView, self).get_context_data(**kwargs)
+        context['oauth'] = context['form']
+        return context
+
     def form_valid(self, form):
         password = form.cleaned_data['password']
         validator = PwnedPasswordsValidator()
@@ -177,7 +182,7 @@ class CustomPasswordChangeView(PasswordChangeView):
         return super().form_valid(form)
 
 
-EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+EPOCH = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
 
 
 class UserAboutPage(UserPage):
@@ -202,11 +207,11 @@ class UserAboutPage(UserPage):
         user_timezone = settings.DEFAULT_USER_TIME_ZONE
         if self.request is not None and self.request.profile is not None:
             user_timezone = user_timezone or self.request.profile.timezone
-        timezone_offset = pytz.timezone(user_timezone).utcoffset(datetime.utcnow()).seconds
+        timezone_offset = pytz.timezone(user_timezone).utcoffset(datetime.datetime.utcnow()).seconds
 
         submissions = (
             self.object.submission_set
-            .annotate(date_only=Cast(F('date') + timedelta(seconds=timezone_offset), DateField()))
+            .annotate(date_only=Cast(F('date') + datetime.timedelta(seconds=timezone_offset), DateField()))
             .values('date_only').annotate(cnt=Count('id'))
         )
 
@@ -224,9 +229,11 @@ class UserAboutPage(UserPage):
 
 
 class UserBan(UserMixin, TitleMixin, SingleObjectFormView):
-    title = gettext_lazy('Ban user')
     template_name = 'user/ban.html'
     form_class = UserBanForm
+
+    def get_title(self):
+        return _('Ban {0}').format(self.object.user.username)
 
     def form_valid(self, form):
         user = self.object
@@ -238,9 +245,26 @@ class UserBan(UserMixin, TitleMixin, SingleObjectFormView):
         return HttpResponseRedirect(reverse('user_page', args=(user.user.username,)))
 
     def dispatch(self, request, *args, **kwargs):
-        if not self.request.user.is_superuser:
+        self.object = self.get_object()
+        if not self.object.can_be_banned_by(self.request.user):
             raise PermissionDenied()
         return super().dispatch(request, *args, **kwargs)
+
+
+class UserUnban(UserBan):
+    form_class = Form
+
+    def get_title(self):
+        return _('Unban {0}').format(self.object.user.username)
+
+    def form_valid(self, form):
+        user = self.object
+        with revisions.create_revision(atomic=True):
+            user.unban_user()
+            revisions.set_user(self.request.user)
+            revisions.set_comment(_('Unbanned by %s') % self.request.user)
+
+        return HttpResponseRedirect(reverse('user_page', args=(user.user.username,)))
 
 
 class UserBlogPage(CustomUserMixin, PostListBase):
@@ -289,7 +313,7 @@ class UserCommentPage(CustomUserMixin, DiggPaginatorMixin, ListView):
 
     @method_decorator(require_POST)
     def delete_comments(self, request, *args, **kwargs):
-        if not request.user.is_superuser:
+        if not request.user.has_perm('judge.change_comment'):
             raise PermissionDenied()
 
         user_id = User.objects.get(username=kwargs['user']).id
@@ -300,7 +324,7 @@ class UserCommentPage(CustomUserMixin, DiggPaginatorMixin, ListView):
         return HttpResponseRedirect(reverse('user_comment', args=(user.user.username,)))
 
     def dispatch(self, request, *args, **kwargs):
-        if not self.request.user.is_superuser:
+        if not request.user.has_perm('judge.view_all_user_comment'):
             raise PermissionDenied()
         if request.method == 'POST':
             return self.delete_comments(request, *args, **kwargs)

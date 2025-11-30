@@ -1,53 +1,46 @@
-# Core framework - CAMBIO PRINCIPAL
-Django==4.2.16
-
-# Common Django extras / utils
-django-cleanup>=8.0
-django-compressor>=4.6
-django-mptt>=0.16.0
-django-pagedown>=2.2.1,<2.3.0  # CORREGIDO
-django-registration-redux>=2.13
-django-reversion>=5.0.0
-django-social-share>=2.3.0
-django-sortedm2m>=4.0.0
-django-impersonate>=1.9.5
-django-redis>=5.2.0
-
-# DMOJ / VNOJ custom packages (keep git references)
+Django>=4.2,<5
+django-cleanup
+django_compressor>=3
+django-mptt>=0.13
+django-registration-redux>=2.10
+django-reversion>=5
+django-social-share
+django-sortedm2m>=3.1.0
+django-impersonate
+django-redis
+mysqlclient
 dmoj-wpadmin @ git+https://github.com/DMOJ/dmoj-wpadmin.git
-django-fernet-fields @ git+https://github.com/DMOJ/django-fernet-fields.git
-jsonfield @ git+https://github.com/DMOJ/jsonfield.git
-ansi2html>=1.9.1
-martor @ git+https://github.com/VNOI-Admin/martor.git
-markdown2 @ git+https://github.com/VNOI-Admin/python-markdown2.git
-
-# Utilities & runtime libs
-lxml>=4.9.0
+lxml
 lxml_html_clean
-Pygments>=2.19
-mistune>=2.0,<4
-social-auth-core>=4.4.0
-social-auth-app-django>=5.3.0
+Pygments<2.12
+mistune<2
+social-auth-core==4.3.0
+social-auth-app-django==5.0.0
 pytz
-django-statici18n>=2.5
+django-statici18n
 pika
 ua-parser
 pyyaml
-jinja2>=3.1.0
-django_jinja>=2.11.0
+jinja2
+django_jinja>=2.5.0
 llist
 requests
+django-fernet-fields @ git+https://github.com/DMOJ/django-fernet-fields.git
 pyotp
 qrcode[pil]
+jsonfield @ git+https://github.com/DMOJ/jsonfield.git
 pymoss
-packaging>=21.0
-celery>=5.3.0,<6
+packaging>=22
+celery
+ansi2html @ git+https://github.com/VNOI-Admin/ansi2html.git
 sqlparse
 lupa
 netaddr
-webauthn>=1.1.0
-bleach[css]>=6.0
+webauthn<1
+bleach[css]
+markdown2 @ git+https://github.com/VNOI-Admin/python-markdown2.git
 discord-webhook
-django-admin-sortable2>=1.0.0
+django-admin-sortable2
 icalendar
-setuptools>=45.0
+# This is a celery dependency whose latest major version is breaking everything.
+importlib-metadata<5

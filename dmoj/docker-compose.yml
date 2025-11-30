@@ -1,19 +1,20 @@
-version: '3.7'
 services:
   db:
-    container_name: vnoj_mysql
-    image: mariadb
+    container_name: tgboj_mysql
+    image: mariadb:10
     restart: unless-stopped
     volumes:
       - ./database/:/var/lib/mysql/
     env_file: [environment/mysql.env, environment/mysql-admin.env]
+    hostname: db
     networks: [db]
-    #ports:
-    #  - 3306:3306
+    # ports:
+    # - 3306:3306
   redis:
-    container_name: vnoj_redis
+    container_name: tgboj_redis
     image: redis:alpine
     restart: unless-stopped
+    hostname: redis
     networks: [site]
     #ports:
     #  - 6379:6379
@@ -21,14 +22,14 @@ services:
     build:
       context: .
       dockerfile: ./base/Dockerfile
-    image: vnoj/vnoj-base
+    image: tgboj/tgboj-base
     network_mode: none
   site:
-    container_name: vnoj_site
+    container_name: tgboj_site
     build:
       context: .
       dockerfile: ./site/Dockerfile
-    image: vnoj/vnoj-site
+    image: tgboj/tgboj-site
     init: true
     restart: unless-stopped
     volumes:
@@ -40,15 +41,17 @@ services:
       - ./problems/:/problems/
       - ./repo/:/site/
     working_dir: /site/
-    env_file: [environment/mysql.env, environment/site.env]
-    networks: [site, nginx, db]
+    env_file:
+      [environment/mysql.env, environment/site.env, environment/email.env]
+    hostname: site
+    networks: [site, caddy, db]
     depends_on: [base, db, redis]
   celery:
-    container_name: vnoj_celery
+    container_name: tgboj_celery
     build:
       context: .
       dockerfile: ./celery/Dockerfile
-    image: vnoj/vnoj-celery
+    image: tgboj/tgboj-celery
     init: true
     restart: unless-stopped
     volumes:
@@ -57,14 +60,15 @@ services:
       - ./repo/:/site/
     working_dir: /site/
     env_file: [environment/mysql.env, environment/site.env]
+    hostname: celery
     networks: [site, db]
     depends_on: [base, db, redis]
   bridged:
-    container_name: vnoj_bridged
+    container_name: tgboj_bridged
     build:
       context: .
       dockerfile: ./bridged/Dockerfile
-    image: vnoj/vnoj-bridged
+    image: tgboj/tgboj-bridged
     init: true
     restart: unless-stopped
     volumes:
@@ -72,50 +76,61 @@ services:
       - ./repo/:/site/
     working_dir: /site/
     env_file: [environment/mysql.env, environment/site.env]
-    networks: [site, nginx, db]
+    hostname: bridged
+    networks: [site, caddy, db]
     depends_on: [base, db, redis]
     ports:
-      - 9998:9998
-      - 9999:9999
+      - "127.0.0.1:9999:9999"
+      - "127.0.0.1:10000:10000"
   wsevent:
-    container_name: vnoj_wsevent
+    container_name: tgboj_wsevent
     build:
       context: .
       dockerfile: ./wsevent/Dockerfile
-    image: vnoj/vnoj-wsevent
+    image: tgboj/tgboj-wsevent
     init: true
     restart: unless-stopped
     volumes:
       - ./repo/:/app/site/
     working_dir: /app/site
     env_file: [environment/mysql.env, environment/site.env]
-    networks: [site, nginx]
+    hostname: wsevent
+    networks: [site, caddy]
     depends_on: [base]
     #ports:
     #  - 15100:15100
     #  - 15101:15101
     #  - 15102:15102
-  nginx:
-    container_name: vnoj_nginx
-    image: nginx:alpine
+  caddy:
+    container_name: tgboj_caddy
+    build:
+      context: .
+      dockerfile: ./caddy/Dockerfile
+    image: tgboj/tgboj-caddy
     restart: unless-stopped
     ports:
       - 80:80
+      - 443:443
     volumes:
       - assets:/assets/
       - userdatacache:/userdatacache/
       - contestdatacache:/contestdatacache/
       - cache:/cache/
       - ./media/:/media/
-      - ./nginx/conf.d/:/etc/nginx/conf.d/
-    networks: [nginx]
+      - ./caddy/config:/etc/caddy/
+      - caddy_data:/data
+      - caddy_config:/config
+    hostname: caddy
+    networks: [caddy]
     depends_on: [site, wsevent]
 networks:
   site:
   db:
-  nginx:
+  caddy:
 volumes:
   assets:
   userdatacache:
   contestdatacache:
   cache:
+  caddy_data:
+  caddy_config:

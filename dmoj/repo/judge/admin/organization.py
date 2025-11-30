@@ -18,9 +18,9 @@ class OrganizationForm(ModelForm):
 
 
 class OrganizationAdmin(VersionAdmin):
-    readonly_fields = ('creation_date',)
-    fields = ('name', 'slug', 'short_name', 'is_open', 'is_unlisted', 'about', 'logo_override_image', 'slots',
-              'creation_date', 'admins')
+    readonly_fields = ('creation_date', 'current_consumed_credit')
+    fields = ('name', 'slug', 'short_name', 'is_open', 'is_unlisted', 'paid_credit', 'current_consumed_credit',
+              'about', 'logo_override_image', 'slots', 'creation_date', 'admins')
     list_display = ('name', 'short_name', 'is_open', 'is_unlisted', 'slots', 'show_public')
     prepopulated_fields = {'slug': ('name',)}
     actions = ('recalculate_points',)
@@ -28,11 +28,10 @@ class OrganizationAdmin(VersionAdmin):
     actions_on_bottom = True
     form = OrganizationForm
 
+    @admin.display(description='')
     def show_public(self, obj):
         return format_html('<a href="{0}" style="white-space:nowrap;">{1}</a>',
                            obj.get_absolute_url(), gettext('View on site'))
-
-    show_public.short_description = ''
 
     def get_readonly_fields(self, request, obj=None):
         fields = self.readonly_fields
@@ -54,6 +53,7 @@ class OrganizationAdmin(VersionAdmin):
             return True
         return obj.is_admin(request.profile)
 
+    @admin.display(description=_('Recalculate scores'))
     def recalculate_points(self, request, queryset):
         count = 0
         for org in queryset:
@@ -62,30 +62,12 @@ class OrganizationAdmin(VersionAdmin):
         self.message_user(request, ngettext('%d organization has scores recalculated.',
                                             '%d organizations have scores recalculated.',
                                             count) % count)
-    recalculate_points.short_description = _('Recalculate scores')
 
 
 class OrganizationRequestAdmin(admin.ModelAdmin):
     list_display = ('username', 'organization', 'state', 'time')
-    readonly_fields = ('user', 'organization')
+    readonly_fields = ('user', 'organization', 'state')
 
+    @admin.display(description=_('username'), ordering='user__user__username')
     def username(self, obj):
         return obj.user.user.username
-    username.short_description = _('username')
-    username.admin_order_field = 'user__user__username'
-
-    # AÑADIDO: Métodos de permisos para OrganizationRequestAdmin
-    def has_add_permission(self, request):
-        return False  # Las solicitudes de organización no deben crearse manualmente
-
-    def has_change_permission(self, request, obj=None):
-        # Solo permitir cambios si el usuario tiene permisos de organización
-        return request.user.has_perm('judge.change_organizationrequest')
-
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        if request.user.has_perm('judge.edit_all_organization'):
-            return queryset
-        else:
-            # Solo mostrar solicitudes para organizaciones que el usuario administra
-            return queryset.filter(organization__admins=request.profile.id)

@@ -868,7 +868,7 @@ msgid "Problem URL"
 msgstr ""
 
 #: judge/forms.py:378
-msgid "Full URL to the problem, e.g. https://oj.vnoi.info/problem/post"
+msgid "Full URL to the problem, e.g. https://oj.giftedbat.edu.vn/problem/aplusb"
 msgstr ""
 
 #: judge/forms.py:410 judge/views/register.py:26
@@ -2327,6 +2327,10 @@ msgstr ""
 
 #: judge/models/profile.py:43
 msgid "Organization name shown in URL"
+msgstr ""
+
+#: judge/models/profile.py:45
+msgid "Organization slugs must begin with a letter."
 msgstr ""
 
 #: judge/models/profile.py:45
