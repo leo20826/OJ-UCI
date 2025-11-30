@@ -3,3 +3,6 @@ dmoj/logs/
 dmoj/media/
 dmoj/problems/
 dmoj/environment/*.env
+dmoj/caddy_data/
+dmoj/caddy_config/
+nginx.conf
