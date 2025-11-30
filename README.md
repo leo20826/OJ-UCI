@@ -66,7 +66,7 @@ You will also need to generate the static files:
 ./scripts/copy_static
 ```
 
-Finally, the TGBOJ comes with fixtures so that the initial install is not blank. They can be loaded with the following commands:
+Finally, the OJ comes with fixtures so that the initial install is not blank. They can be loaded with the following commands:
 
 ```sh
 ./scripts/manage.py loaddata navbar
