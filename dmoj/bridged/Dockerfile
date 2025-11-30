@@ -1,4 +1,4 @@
-FROM tgboj/tgboj-base:latest
+FROM oj/oj-base:latest
 
 EXPOSE 9999
 EXPOSE 10000
