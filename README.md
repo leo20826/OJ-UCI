@@ -11,7 +11,7 @@ Check out its features [here](https://github.com/DMOJ/online-judge#features).
 ```shell-session
 $ apt update
 $ apt install git gcc g++ make python3-dev python3-pip python3-venv libxml2-dev libxslt1-dev zlib1g-dev gettext curl redis-server pkg-config
-$ curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+$ curl -sL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 $ apt install nodejs
 ```
 
