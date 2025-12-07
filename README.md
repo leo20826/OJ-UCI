@@ -1,16 +1,287 @@
-# OJ: Online Judge [![Build Status](https://github.com/VNOI-Admin/OJ/workflows/build/badge.svg)](https://github.com/VNOI-Admin/OJ/actions/) [![AGPL License](https://img.shields.io/badge/license-AGPLv3.0-blue.svg)](http://www.gnu.org/licenses/agpl-3.0) [![Discord link](https://img.shields.io/discord/660930260405190688?color=%237289DA&label=Discord&logo=Discord)](https://discord.com/invite/TDyYVyd)
-
-As a fork of [DMOJ](https://github.com/DMOJ/online-judge), VNOJ serves as [VNOI](https://team.vnoi.info/)'s official online judge and hosts its programming contests.
-
-See it live at [oj.vnoi.info](https://oj.vnoi.info/)!
+# OJ - Online Judge
 
 ## Features
 
 Check out its features [here](https://github.com/DMOJ/online-judge#features).
 
-## Installation
+# Installing the site.
 
-Refer to the install documentation [here](https://vnoi-admin.github.io/vnoj-docs/#/site/installation). Almost all installation steps remain the same as the docs, but there are several minor differences, including cloning this repo instead of DMOJ's repo.
+## Installing the prerequisites.
+
+```shell-session
+$ apt update
+$ apt install git gcc g++ make python3-dev python3-pip python3-venv libxml2-dev libxslt1-dev zlib1g-dev gettext curl redis-server pkg-config
+$ curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+$ apt install nodejs
+```
+
+## Creating the database
+
+Next, we will set up the database using MariaDB. The OJ is only tested to work with MySQL, and it is unlikely to work with anything else. Please visit [the MariaDB site](https://mariadb.org/download/?t=repo-config) and follow the download instructions.
+
+When asked, you should select the latest MariaDB version.
+
+```shell-session
+$ apt update
+$ apt install mariadb-server libmysqlclient-dev
+```
+
+The next step is to set up the database itself. You should execute the commands listed below to create the necessary database and user.
+
+```shell-session
+$ sudo mysql
+mariadb> CREATE DATABASE dmoj DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_general_ci;
+mariadb> GRANT ALL PRIVILEGES ON dmoj.* TO 'dmoj'@'localhost' IDENTIFIED BY '<mariadb user password>';
+mariadb> exit
+```
+
+## Installing prerequisites
+
+Now that you are done, you can start installing the site. First, create a virtual environment and activate it. Here, we'll create a virtual environment named `ojsite`.
+
+```shell-session
+$ python3 -m venv ojsite
+$ . ojsite/bin/activate
+```
+
+You should see `(ojsite)` prepended to your shell. Henceforth, `(ojsite)` commands assume you are in the code directory, with the virtual environment active.
+
+?> The virtual environment will help keep the modules needed separate from the system package manager, and save you many headaches when updating. Read more about virtual environments [here](https://docs.python.org/3/tutorial/venv.html).
+
+Now, fetch the site source code:
+
+```shell-session
+(ojsite) $ git clone --recursive https://github.com/leo20826/oj-uci.git site
+(ojsite) $ cd site
+```
+
+Install Python dependencies into the virtual environment.
+
+```shell-session
+(ojsite) $ pip3 install -r requirements.txt
+```
+
+Install Node.js packages:
+
+```shell-session
+(ojsite) $ npm install
+```
+
+You will now need to configure `dmoj/local_settings.py`. You should make a copy of [this sample settings file](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/local_settings.py) and read through it, making changes as necessary. Most importantly, you will want to update MariaDB credentials.
+
+?> Leave debug mode on for now; we'll disable it later after we've verified that the site works. <br> <br>
+Generally, it's recommended that you add your settings in `dmoj/local_settings.py` rather than modifying `dmoj/settings.py` directly. `settings.py` will automatically read `local_settings.py` and load it, so write your configuration there.
+
+## Compiling assets
+
+VNOJ uses `sass` and `autoprefixer` to generate the site stylesheets. VNOJ comes with a `make_style.sh` script that may be run to compile and optimize the stylesheets.
+
+```shell-session
+(ojsite) $ ./make_style.sh
+```
+
+Now, collect static files into `STATIC_ROOT` as specified in `dmoj/local_settings.py`.
+
+```shell-session
+(ojsite) $ ./manage.py collectstatic
+```
+
+You will also need to generate internationalization files.
+
+```shell-session
+(ojsite) $ ./manage.py compilemessages
+(ojsite) $ ./manage.py compilejsi18n
+```
+
+## Setting up Celery
+
+The OJ uses Celery workers to perform most of its heavy lifting, such as batch rescoring submissions. We will use Redis as its broker, though note that other brokers that Celery supports will work as well.
+
+Start up the Redis server, which is needed by the Celery workers.
+
+```shell-session
+$ service redis-server start
+```
+
+Configure `local_settings.py` by uncommenting `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND`. By default, Redis listens on localhost port 6379, which is reflected in `local_settings.py`. You will need to update the addresses if you changed Redis's settings.
+
+We will test that Celery works soon.
+
+## Setting up database tables
+
+We must generate the schema for the database, since it is currently empty.
+
+```shell-session
+(ojsite) $ ./manage.py migrate
+```
+
+Next, load some initial data so that your install is not entirely blank.
+
+```shell-session
+(ojsite) $ ./manage.py loaddata navbar
+(ojsite) $ ./manage.py loaddata language_small
+(ojsite) $ ./manage.py loaddata demo
+```
+
+!> Keep in mind that the `demo` fixture creates a superuser account with a username and password of `admin`. If your
+site is exposed to others, you should change the user's password or remove the user entirely.
+
+You should create an admin account with which to log in initially.
+
+```shell-session
+(ojsite) $ ./manage.py createsuperuser
+```
+
+## Running the server
+
+Now, you should verify that everything is going according to plan.
+
+```shell-session
+(ojsite) $ ./manage.py check
+```
+
+At this point, you should attempt to run the server, and see if it all works.
+
+```shell-session
+(ojsite) $ ./manage.py runserver 0.0.0.0:8000
+```
+
+You should Ctrl-C to exit after verifying.
+
+!> **Do not use `runserver` in production!** <br> <br>
+We will set up a proper webserver using nginx and uWSGI soon.
+
+You should also test to see if `bridged` runs.
+
+```shell-session
+(ojsite) $ ./manage.py runbridged
+```
+
+If there are no errors after about 10 seconds, it probably works.
+You should Ctrl-C to exit.
+
+Next, test that the Celery workers run.
+
+```shell-session
+(ojsite) $ celery -A dmoj_celery worker
+```
+
+You can Ctrl-C to exit.
+
+## Setting up uWSGI
+
+`runserver` is insecure and not meant for production workloads, and should not be used beyond testing.
+In the rest of this guide, we will be installing `uwsgi` and `nginx` to serve the site, using `supervisord`
+to keep `site` and `bridged` running. It's likely other configurations may work, but they are unsupported.
+
+First, copy our `uwsgi.ini` ([link](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/uwsgi.ini)). You should change the paths to reflect your install.
+
+You need to install `uwsgi`.
+
+```shell-session
+(ojsite) $ pip3 install uwsgi
+```
+
+To test, run:
+
+```shell-session
+(ojsite) $ uwsgi --ini uwsgi.ini
+```
+
+If it says workers are spawned, it probably works.
+You should Ctrl-C to exit.
+
+## Setting up supervisord
+
+You should now install `supervisord` and configure it.
+
+```shell-session
+$ apt install supervisor
+```
+
+Copy our `site.conf` ([link](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/site.conf)) to `/etc/supervisor/conf.d/site.conf`, `bridged.conf` ([link](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/bridged.conf)) to `/etc/supervisor/conf.d/bridged.conf`, `celery.conf` ([link](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/celery.conf)) to `/etc/supervisor/conf.d/celery.conf` and fill in the fields.
+
+Next, reload `supervisord` and check that the site, bridged, and celery have started.
+
+```shell-session
+$ supervisorctl update
+$ supervisorctl status
+```
+
+If all three processes are running, everything is good! Otherwise, peek at the logs and see what's wrong.
+
+## Setting up nginx
+
+Now, it's time to set up `nginx`.
+
+```shell-session
+$ apt install nginx
+```
+
+You should copy the sample `nginx.conf` ([link](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/nginx.conf)), edit it and place it in wherever it is supposed to be for your nginx install.
+
+?> Typically, `nginx` site files are located in `/etc/nginx/conf.d`.
+Some installations might place it at `/etc/nginx/sites-available` and require a symlink in `/etc/nginx/sites-enabled`.
+
+Next, check if there are any issues with your nginx setup.
+
+```shell-session
+$ nginx -t
+```
+
+If not, reload the `nginx` configuration.
+
+```shell-session
+$ service nginx reload
+```
+
+You should be good to go. Visit the site at where you set it up to verify.
+
+If it does not work, check `nginx` logs and `uwsgi` log `stdout`/`stderr` for details.
+
+?> Now that your site is installed, remember to set `DEBUG` to `False` in `local_settings`. Leaving it `True` is a security risk.
+
+## Configuration of event server
+
+Create `config.js` inside directory `websocket` with the following content:
+
+```js
+const config = {
+  get_host: '127.0.0.1',
+  get_port: 15100,
+  post_host: '127.0.0.1',
+  post_port: 15101,
+  http_host: '127.0.0.1',
+  http_port: 15102,
+  long_poll_timeout: 29000
+};
+
+export default config;
+```
+
+This assumes you use `nginx`, or there be dragons.
+You may need to shuffle ports if they are already used.
+
+`get_port` should be the same as the port for `/event/` in `nginx.conf`.
+`http_port` should be the same as the port for `/channels/` in `nginx.conf`.
+`post_port` should be the same as the port in `EVENT_DAEMON_POST` in `local_settings`.
+You need to configure `EVENT_DAEMON_GET` and `EVENT_DAEMON_POLL`.
+You need to uncomment the relevant section in the `nginx` configuration.
+
+Need to install the dependencies.
+
+```shell-session
+(ojsite) $ pip3 install websocket-client
+```
+
+Now copy `wsevent.conf` ([link](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/wsevent.conf)) to `/etc/supervisor/conf.d/wsevent.conf`, changing paths, and then update supervisor and nginx.
+
+```shell-session
+$ supervisorctl update
+$ supervisorctl restart bridged
+$ supervisorctl restart site
+$ service nginx restart
+```
 
 ### Additional installation steps
 
@@ -27,12 +298,3 @@ Refer to the install documentation [here](https://vnoi-admin.github.io/vnoj-docs
 
 - To support `testlib.h`, you need to copy [testlib.h](https://github.com/MikeMirzayanov/testlib/blob/master/testlib.h) to `g++`'s include path in the judge server. To speed up compile time, you can also create a precompiled header for `testlib.h`.
 
-## Contributing ![PR's Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat)
-
-Take a look at [our contribution guideline](contributing.md).
-
-If you find any bug, please feel free to contact us via Discord [![Discord Chat](https://img.shields.io/discord/660930260405190688?color=%237289DA&label=Discord&logo=Discord)](https://discord.gg/TDyYVyd) or open an issue.
-
-Pull requests are welcome as well. Before you submit your PR, please check your code with [flake8](https://flake8.pycqa.org/en/latest/) and format it if needed. There's also `prettier` if you need to format JS code (in `websocket/`).
-
-Translation contributions are also welcome.
