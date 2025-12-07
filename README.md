@@ -174,7 +174,7 @@ You can Ctrl-C to exit.
 In the rest of this guide, we will be installing `uwsgi` and `nginx` to serve the site, using `supervisord`
 to keep `site` and `bridged` running. It's likely other configurations may work, but they are unsupported.
 
-First, copy our `uwsgi.ini` ([link](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/uwsgi.ini)). You should change the paths to reflect your install.
+First, copy our `uwsgi.ini` ([link](https://github.com/leo20826/oj-uci-docs/blob/master/sample_files/uwsgi.ini)). You should change the paths to reflect your install.
 
 You need to install `uwsgi`.
 
@@ -199,7 +199,7 @@ You should now install `supervisord` and configure it.
 $ apt install supervisor
 ```
 
-Copy our `site.conf` ([link](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/site.conf)) to `/etc/supervisor/conf.d/site.conf`, `bridged.conf` ([link](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/bridged.conf)) to `/etc/supervisor/conf.d/bridged.conf`, `celery.conf` ([link](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/celery.conf)) to `/etc/supervisor/conf.d/celery.conf` and fill in the fields.
+Copy our `site.conf` ([link](https://github.com/leo20826/oj-uci-docs/blob/master/sample_files/site.conf)) to `/etc/supervisor/conf.d/site.conf`, `bridged.conf` ([link](https://github.com/leo20826/oj-uci-docs/blob/master/sample_files/bridged.conf)) to `/etc/supervisor/conf.d/bridged.conf`, `celery.conf` ([link](https://github.com/leo20826/oj-uci-docs/blob/master/sample_files/celery.conf)) to `/etc/supervisor/conf.d/celery.conf` and fill in the fields.
 
 Next, reload `supervisord` and check that the site, bridged, and celery have started.
 
@@ -218,7 +218,7 @@ Now, it's time to set up `nginx`.
 $ apt install nginx
 ```
 
-You should copy the sample `nginx.conf` ([link](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/nginx.conf)), edit it and place it in wherever it is supposed to be for your nginx install.
+You should copy the sample `nginx.conf` ([link](https://github.com/leo20826/oj-uci-docs/blob/master/sample_files/nginx.conf)), edit it and place it in wherever it is supposed to be for your nginx install.
 
 ?> Typically, `nginx` site files are located in `/etc/nginx/conf.d`.
 Some installations might place it at `/etc/nginx/sites-available` and require a symlink in `/etc/nginx/sites-enabled`.
@@ -274,7 +274,7 @@ Need to install the dependencies.
 (ojsite) $ pip3 install websocket-client
 ```
 
-Now copy `wsevent.conf` ([link](https://github.com/VNOI-Admin/vnoj-docs/blob/master/sample_files/wsevent.conf)) to `/etc/supervisor/conf.d/wsevent.conf`, changing paths, and then update supervisor and nginx.
+Now copy `wsevent.conf` ([link](https://github.com/leo20826/oj-uci-docs/blob/master/sample_files/wsevent.conf)) to `/etc/supervisor/conf.d/wsevent.conf`, changing paths, and then update supervisor and nginx.
 
 ```shell-session
 $ supervisorctl update
