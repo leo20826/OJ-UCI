@@ -74,7 +74,7 @@ Generally, it's recommended that you add your settings in `dmoj/local_settings.p
 
 ## Compiling assets
 
-VNOJ uses `sass` and `autoprefixer` to generate the site stylesheets. VNOJ comes with a `make_style.sh` script that may be run to compile and optimize the stylesheets.
+OJ uses `sass` and `autoprefixer` to generate the site stylesheets. OJ comes with a `make_style.sh` script that may be run to compile and optimize the stylesheets.
 
 ```shell-session
 (ojsite) $ ./make_style.sh
